@@ -1,27 +1,25 @@
 // scrapers/mercadolivre.js
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { CONFIG, ROTAS_ML } = require('../config');
-const { carregarHistorico } = require('../memoria');
+const { CONFIG } = require('../config');
+const { foiEnviadoRecentemente } = require('../memoria');
 
 const esperar = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function buscarOfertasML(regrasDoGrupo) {
     console.log(`\n==================================================`);
-    console.log(`🔍 INICIANDO BUSCA PARA A CATEGORIA: ${regrasDoGrupo.CATEGORIA_ESCOLHIDA}`);
+    console.log(`🔍 INICIANDO BUSCA NA ROTA: ${regrasDoGrupo.ROTA_ATUAL}`);
     console.log(`==================================================`);
     
     const produtos = [];
-    let paginaAtual = regrasDoGrupo.PAGINA_OFERTAS_INICIAL;
+    let paginaAtual = 1;
     let paginasVasculhadas = 0;
-    const historico = carregarHistorico();
 
-    while (produtos.length < regrasDoGrupo.QUANTIDADE_PRODUTOS && paginasVasculhadas < regrasDoGrupo.LIMITE_PAGINAS_BUSCA) {
-        console.log(`\n📄 Lendo a página ${paginaAtual}... (Meta: ${produtos.length}/${regrasDoGrupo.QUANTIDADE_PRODUTOS} produtos)`);
+    while (produtos.length < regrasDoGrupo.QTD_ATUAL && paginasVasculhadas < regrasDoGrupo.LIMITE_PAGINAS_BUSCA) {
+        console.log(`\n📄 Lendo a página ${paginaAtual}... (Meta: ${produtos.length}/${regrasDoGrupo.QTD_ATUAL} produtos)`);
         
         try {
-            const rotaExata = ROTAS_ML[regrasDoGrupo.CATEGORIA_ESCOLHIDA] || '';
-            let urlDaBusca = `https://www.mercadolivre.com.br/ofertas${rotaExata}`;
+            let urlDaBusca = `https://www.mercadolivre.com.br/ofertas${regrasDoGrupo.ROTA_ATUAL}`;
             const separador = urlDaBusca.includes('?') ? '&' : '?';
             urlDaBusca += `${separador}page=${paginaAtual}&_t=${new Date().getTime()}`;
 
@@ -35,7 +33,9 @@ async function buscarOfertasML(regrasDoGrupo) {
             });
             
             const $ = cheerio.load(data);
-            let cartoes = $('.poly-card, .ui-search-layout__item'); 
+            
+            // 🪄 MUDANÇA: Transformamos em Array para poder usar o 'await' dentro do loop
+            let cartoes = $('.poly-card, .ui-search-layout__item').toArray(); 
             
             if (cartoes.length === 0) {
                 console.log('   ⚠️ Nenhum cartão de produto encontrado nesta página. Fim das ofertas.');
@@ -44,8 +44,8 @@ async function buscarOfertasML(regrasDoGrupo) {
 
             let cartoesAnalisadosNaPagina = 0;
 
-            cartoes.each((i, elemento) => {
-                if (produtos.length >= regrasDoGrupo.QUANTIDADE_PRODUTOS) return false; 
+            for (const elemento of cartoes) {
+                if (produtos.length >= regrasDoGrupo.QTD_ATUAL) break; 
                 cartoesAnalisadosNaPagina++;
 
                 const linkOriginal = $(elemento).find('a').attr('href');
@@ -53,7 +53,9 @@ async function buscarOfertasML(regrasDoGrupo) {
 
                 if (titulo && linkOriginal) {
                     const linkLimpo = linkOriginal.split('?')[0];
-                    if (historico.includes(linkLimpo)) return true; // Ignora silenciosamente se já está na memória
+                    
+                    // Checagem de Memória de Dias (Ignora se for recente)
+                    if (foiEnviadoRecentemente(linkLimpo, regrasDoGrupo.DIAS_PARA_REPETIR_PRODUTO)) return true;
 
                     let precoAntigo = $(elemento).find('.andes-money-amount--previous .andes-money-amount__fraction, .poly-price__old .andes-money-amount__fraction, s .andes-money-amount__fraction').first().text().trim();
                     let preco = $(elemento).find('.poly-price__current .andes-money-amount__fraction, .ui-search-price__second-line .andes-money-amount__fraction').first().text().trim(); 
@@ -72,29 +74,39 @@ async function buscarOfertasML(regrasDoGrupo) {
                     const passaPalavraChave = regrasDoGrupo.PALAVRAS_CHAVE.length === 0 || regrasDoGrupo.PALAVRAS_CHAVE.some(palavra => tituloMinusculo.includes(palavra.toLowerCase()));
 
                     if (passaPalavraChave) {
-                        const passaNoDesconto = descontoNumero >= regrasDoGrupo.DESCONTO_MINIMO;
-                        const passaNaNota = notaNumero >= regrasDoGrupo.NOTA_MINIMA;
-                        const passaNasVendas = vendasNumero >= regrasDoGrupo.VENDAS_MINIMAS;
+                        const passaNoDesconto = descontoNumero >= regrasDoGrupo.DESCONTO_ATUAL;
+                        const passaNaNota = notaNumero >= regrasDoGrupo.NOTA_ATUAL;
+                        const passaNasVendas = vendasNumero >= regrasDoGrupo.VENDAS_ATUAIS;
 
                         if (passaNoDesconto && passaNaNota && passaNasVendas) {
-                            produtos.push({ titulo, preco, precoAntigo, linkOriginal, linkLimpo, desconto: descontoNumero, nota: notaNumero, vendas: vendasNumero });
-                            console.log(`   ⭐ APROVADO: ${titulo}`);
-                            console.log(`      ↳ 📉 ${descontoNumero}% OFF | ⭐️ Nota ${notaNumero} | 📦 ${vendasNumero} vendas`);
+                            
+                            // 🛡️ A BARREIRA FINAL: Tenta gerar o link antes de aprovar!
+                            console.log(`   ⏳ Validando Link de Afiliado para: ${titulo}...`);
+                            const linkComissionado = await gerarLinkAfiliadoML(linkOriginal);
+
+                            if (linkComissionado) {
+                                // Salva na fila já com o link pronto e comissionado!
+                                produtos.push({ titulo, preco, precoAntigo, linkOriginal, linkLimpo, linkComissionado, desconto: descontoNumero, nota: notaNumero, vendas: vendasNumero });
+                                console.log(`   ⭐ APROVADO: ${titulo}`);
+                                console.log(`      ↳ Link Afiliado OK: ${linkComissionado}`);
+                            } else {
+                                console.log(`   ❌ REPROVADO: Falha ao converter link de afiliado.`);
+                            }
+                            
                         } else {
                             console.log(`   ❌ REPROVADO: ${titulo}`);
-                            console.log(`      ↳ Achou  : Desconto ${descontoNumero}% | Nota ${notaNumero} | Vendas ${vendasNumero}`);
-                            console.log(`      ↳ Exigido: Desconto >= ${regrasDoGrupo.DESCONTO_MINIMO}% | Nota >= ${regrasDoGrupo.NOTA_MINIMA} | Vendas >= ${regrasDoGrupo.VENDAS_MINIMAS}`);
+                            console.log(`      ↳ Exigido: Desc >= ${regrasDoGrupo.DESCONTO_ATUAL}% | Nota >= ${regrasDoGrupo.NOTA_ATUAL} | Vendas >= ${regrasDoGrupo.VENDAS_ATUAIS}`);
                         }
                     }
                 }
-            });
+            }
 
             console.log(`   👁️ Cartões com a palavra-chave analisados nesta página: ${cartoesAnalisadosNaPagina}`);
 
-            if (produtos.length < regrasDoGrupo.QUANTIDADE_PRODUTOS) {
+            if (produtos.length < regrasDoGrupo.QTD_ATUAL) {
                 paginaAtual++;
                 paginasVasculhadas++;
-                console.log(`   ⏳ Pausando 2 segundos antes de virar a página para evitar bloqueios...`);
+                console.log(`   ⏳ Pausando 2 segundos antes de virar a página...`);
                 await esperar(2000); 
             } else {
                 paginasVasculhadas++; 
@@ -109,7 +121,6 @@ async function buscarOfertasML(regrasDoGrupo) {
     return produtos;
 }
 
-// O gerador de link agora pega o cookie direto das configurações GERAIS
 async function gerarLinkAfiliadoML(linkOriginal) {
     try {
         const urlApiInterna = 'https://www.mercadolivre.com.br/affiliate-program/api/v2/affiliates/createLink'; 
@@ -121,10 +132,13 @@ async function gerarLinkAfiliadoML(linkOriginal) {
                 'Origin': 'https://www.mercadolivre.com.br'
             }
         });
-        if (resposta.data?.urls?.[0]?.short_url) return resposta.data.urls[0].short_url;
-        return linkOriginal; 
+        
+        if (resposta.data?.urls?.[0]?.short_url) {
+            return resposta.data.urls[0].short_url; // Sucesso!
+        }
+        return null; // 🪄 Falhou na conversão (devolve nulo em vez de devolver o link original)
     } catch (erro) {
-        return linkOriginal; 
+        return null; // 🪄 Falhou por erro de rede/cookie
     }
 }
 
