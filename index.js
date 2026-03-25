@@ -8,19 +8,30 @@ const mercadolivre = require('./scrapers/mercadolivre');
 
 const esperar = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Configuração base do navegador
+const puppeteerConfig = {
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+};
+
+// Se o sistema for Linux (sua VPS na nuvem), ele usa o caminho de lá. 
+// Se for Windows (seu PC), ele ignora isso e usa o navegador padrão que o Node já baixou.
+if (process.platform === 'linux') {
+    puppeteerConfig.executablePath = '/usr/bin/chromium-browser';
+}
+
 const client = new Client({
     authStrategy: new LocalAuth(),
-    puppeteer: { args: ['--no-sandbox'] }
+    puppeteer: puppeteerConfig
 });
 
 let roboOcupado = false; 
 
 // ==========================================
-// MOTOR COM MEMÓRIA, TURNOS E CÁLCULO DE QTD
+// 1. O GARIMPEIRO (Busca e Agenda)
 // ==========================================
 async function rodarRoboDeOfertas(idGrupoEspecifico = null) {
     if (roboOcupado) {
-        console.log('⚠️ O robô já está trabalhando em uma fila. Aguarde.');
+        console.log('⚠️ O Garimpeiro já está ocupado. Aguarde.');
         return;
     }
     roboOcupado = true;
@@ -35,133 +46,170 @@ async function rodarRoboDeOfertas(idGrupoEspecifico = null) {
         const turnoEncontrado = regrasDoGrupo.TURNOS.find(t => horaAtual >= t.inicio && horaAtual <= t.fim);
 
         if (!turnoEncontrado) {
-            console.log(`🌙 Grupo ${regrasDoGrupo.NOME} fora de horário comercial (${horaAtual}h). Robô descansando.`);
+            console.log(`🌙 Grupo ${regrasDoGrupo.NOME} fora de horário comercial.`);
             continue;
         }
 
-        const isRelampago = turnoEncontrado.modo === 'RELAMPAGO';
-        const rotaUsada = isRelampago ? regrasDoGrupo.ROTA_RELAMPAGO : regrasDoGrupo.ROTA_PADRAO;
-        
-        // 👇 ADICIONE ESTAS 3 LINHAS AQUI 👇
-        regrasDoGrupo.DESCONTO_ATUAL = isRelampago ? regrasDoGrupo.DESCONTO_MINIMO_RELAMPAGO : regrasDoGrupo.DESCONTO_MINIMO_PADRAO;
-        regrasDoGrupo.VENDAS_ATUAIS = isRelampago ? regrasDoGrupo.VENDAS_MINIMAS_RELAMPAGO : regrasDoGrupo.VENDAS_MINIMAS_PADRAO;
-        regrasDoGrupo.NOTA_ATUAL = isRelampago ? regrasDoGrupo.NOTA_MINIMA_RELAMPAGO : regrasDoGrupo.NOTA_MINIMA_PADRAO;
-        // 👆 ---------------------------- 👆
-
-        // 🧮 CÁLCULO INTELIGENTE DE DEMANDA
-        const horasDeDuracao = (turnoEncontrado.fim - turnoEncontrado.inicio) + 1;
-        const minutosTotais = horasDeDuracao * 60;
-        const qtdUsada = Math.floor(minutosTotais / turnoEncontrado.intervaloMin);
-        const intervaloUsado = turnoEncontrado.intervaloMin * 60; // Em segundos
-
         const ehMesmoTurno = regrasDoGrupo.TURNO_SALVO === turnoEncontrado.id && regrasDoGrupo.DATA_SALVA === dataHoje;
 
-        console.log(`\n📦 Grupo: ${regrasDoGrupo.NOME} | Turno: ${turnoEncontrado.id} (${turnoEncontrado.modo})`);
-        console.log(`🧮 Meta calculada: ${qtdUsada} produtos para cobrir ${minutosTotais} minutos (1 a cada ${turnoEncontrado.intervaloMin} min).`);
-
         if (ehMesmoTurno && regrasDoGrupo.FILA_DE_PRODUTOS.length === 0) {
-            console.log(`✅ Todos os produtos deste turno já foram enviados hoje! Aguardando o próximo turno...`);
+            console.log(`✅ O turno ${turnoEncontrado.id} já foi finalizado hoje. Aguardando o próximo.`);
             continue;
         } 
         
         if (ehMesmoTurno && regrasDoGrupo.FILA_DE_PRODUTOS.length > 0) {
-            console.log(`♻️ Memória ativada! Retomando envios da fila salva (${regrasDoGrupo.FILA_DE_PRODUTOS.length} restando).`);
-        } else {
-            console.log(`🔍 Iniciando nova busca no ML para o turno ${turnoEncontrado.id}...`);
-            await client.sendMessage(idGrupo, `⏳ Pessoal, garimpando as melhores ofertas do modo ${turnoEncontrado.modo}...`);
-            
-            regrasDoGrupo.ROTA_ATUAL = rotaUsada;
-            regrasDoGrupo.QTD_ATUAL = qtdUsada;
-            
-            const novosProdutos = await mercadolivre.buscarOfertasML(regrasDoGrupo);
-            
-            setGrupo(idGrupo, 'FILA_DE_PRODUTOS', novosProdutos);
-            setGrupo(idGrupo, 'TURNO_SALVO', turnoEncontrado.id);
-            setGrupo(idGrupo, 'DATA_SALVA', dataHoje);
+            console.log(`♻️ A fila já está cheia. O Despachante cuidará do envio.`);
+            continue;
         }
 
-        while (CONFIG.GRUPOS[idGrupo].FILA_DE_PRODUTOS.length > 0) {
-            const produto = CONFIG.GRUPOS[idGrupo].FILA_DE_PRODUTOS[0]; 
-            
-            let linhaPreco = `💰 *Preço:* R$ ${produto.preco}`;
-            if (produto.precoAntigo) linhaPreco = `💰 *Preço:* De ~R$ ${produto.precoAntigo}~ por *R$ ${produto.preco}*`;
+        const isRelampago = turnoEncontrado.modo === 'RELAMPAGO';
+        regrasDoGrupo.ROTA_ATUAL = isRelampago ? regrasDoGrupo.ROTA_RELAMPAGO : regrasDoGrupo.ROTA_PADRAO;
+        regrasDoGrupo.DESCONTO_ATUAL = isRelampago ? regrasDoGrupo.DESCONTO_MINIMO_RELAMPAGO : regrasDoGrupo.DESCONTO_MINIMO_PADRAO;
+        regrasDoGrupo.VENDAS_ATUAIS = isRelampago ? regrasDoGrupo.VENDAS_MINIMAS_RELAMPAGO : regrasDoGrupo.VENDAS_MINIMAS_PADRAO;
+        regrasDoGrupo.NOTA_ATUAL = isRelampago ? regrasDoGrupo.NOTA_MINIMA_RELAMPAGO : regrasDoGrupo.NOTA_MINIMA_PADRAO;
 
-            const emoji = isRelampago ? '⚡ *OFERTA RELÂMPAGO* ⚡' : '🔥 *OFERTA ENCONTRADA* 🔥';
-            const textoMensagem = `${emoji}\n\n📦 *Produto:* ${produto.titulo}\n⭐ *Nota:* ${produto.nota} (${produto.vendas}+ vendidos)\n📉 *Desconto:* ${produto.desconto}% OFF\n${linhaPreco}\n\n🛒 *Compre aqui:* ${produto.linkComissionado}`;
+        const horasDeDuracao = (turnoEncontrado.fim - turnoEncontrado.inicio) + 1;
+        const minutosTotais = horasDeDuracao * 60;
+        const qtdUsada = Math.floor(minutosTotais / turnoEncontrado.intervaloMin);
 
-            const chat = await client.getChatById(idGrupo);
+        console.log(`\n🔍 Iniciando garimpo para ${regrasDoGrupo.NOME} | Turno: ${turnoEncontrado.id}`);
+        console.log(`🧮 Meta: ${qtdUsada} produtos (1 a cada ${turnoEncontrado.intervaloMin} min).`);
+        await client.sendMessage(idGrupo, `⏳ Pessoal, garimpando as melhores ofertas do modo ${turnoEncontrado.modo}...`);
 
-            // 🛡️ ANTI-BAN (DUAS MARCHAS)
-            let variacaoEmSegundos = 0;
-            if (intervaloUsado >= 300) {
-                variacaoEmSegundos = Math.floor(Math.random() * 121) + 60;
-            } else {
-                variacaoEmSegundos = Math.floor(Math.random() * 11) + 2;
-            }
-            const tempoFinal = intervaloUsado + variacaoEmSegundos;
+        regrasDoGrupo.QTD_ATUAL = qtdUsada;
+        const novosProdutos = await mercadolivre.buscarOfertasML(regrasDoGrupo);
 
-            console.log(`   ⏳ Aguardando ${tempoFinal} seg (Base: ${intervaloUsado}s + Atraso: ${variacaoEmSegundos}s)...`);
-            
-            await chat.sendStateTyping(); 
-            await esperar(tempoFinal * 1000); 
+        // 🪄 A MÁGICA DO AGENDAMENTO (O 1º vai pra AGORA)
+        const agoraMS = Date.now();
+        const intervaloEmMS = turnoEncontrado.intervaloMin * 60 * 1000;
 
-            // ⏰ TRAVA DE SEGURANÇA: O TURNO VIROU ENQUANTO EU DORMIA?
-            const horaPosEspera = new Date().getHours();
-            if (horaPosEspera > turnoEncontrado.fim || horaPosEspera < turnoEncontrado.inicio) {
-                console.log(`\n⏰ Virada de turno detectada (${horaPosEspera}h)! Abandonando a fila do turno ${turnoEncontrado.id}...`);
-                break; // 🪄 MÁGICA: Quebra o laço 'while' e libera o robô imediatamente!
-            }
+        const filaAgendada = novosProdutos.map((prod, index) => {
+            return {
+                produto: prod,
+                horarioEnvio: agoraMS + (index * intervaloEmMS) // Index 0 = sai na hora!
+            };
+        });
 
-            // 🚀 DISPARO E MEMÓRIA
-            await client.sendMessage(idGrupo, textoMensagem);
-            salvarNoHistorico(produto.linkLimpo);
+        setGrupo(idGrupo, 'FILA_DE_PRODUTOS', filaAgendada);
+        setGrupo(idGrupo, 'TURNO_SALVO', turnoEncontrado.id);
+        setGrupo(idGrupo, 'DATA_SALVA', dataHoje);
 
-            // ♻️ TIRA O PRODUTO DA FILA
-            const filaAtualizada = CONFIG.GRUPOS[idGrupo].FILA_DE_PRODUTOS.slice(1);
-            setGrupo(idGrupo, 'FILA_DE_PRODUTOS', filaAtualizada);
-        }
+        // 👇 ADICIONE ESTE BLOCO AQUI 👇
+        console.log(`\n📅 Cronograma de Envios Gerado:`);
+        filaAgendada.forEach((item, i) => {
+            const horaFormatada = new Date(item.horarioEnvio).toLocaleTimeString('pt-BR');
+            // Corta o título com substring para o log não ficar uma bagunça gigante
+            console.log(`[${i + 1}/${filaAgendada.length}] ⏰ ${horaFormatada} -> ${item.produto.titulo.substring(0, 35)}...`);
+        });
+        // 👆 FIM DO BLOCO 👆
         
-        await client.sendMessage(idGrupo, `🎉 Fim das ofertas deste turno. Aproveitem!`);
+        console.log(`✅ ${filaAgendada.length} produtos agendados! O Garimpeiro vai descansar.\n`);
     }
+    
     roboOcupado = false;
-    console.log('🏁 Processo finalizado com sucesso. Liberando o robô.');
 }
 
 // ==========================================
-// EVENTOS E PILOTO AUTOMÁTICO
+// 2. O DESPACHANTE (Motor de Eventos)
 // ==========================================
 client.on('qr', (qr) => qrcode.generate(qr, { small: true }));
 
 client.on('ready', () => {
-    console.log('✅ Bot conectado e pronto!');
+    console.log('✅ Bot conectado e Despachante Operacional!');
 
     setInterval(async () => {
-        if (!CONFIG.GERAL.PILOTO_AUTOMATICO_LIGADO || roboOcupado) return;
-        
-        const horaAtual = new Date().getHours();
-        const dataHoje = new Date().toLocaleDateString();
-        let temTrabalho = false;
+        if (!CONFIG.GERAL.PILOTO_AUTOMATICO_LIGADO) return;
 
-        for (const id in CONFIG.GRUPOS) {
-            const regras = CONFIG.GRUPOS[id];
-            const turno = regras.TURNOS.find(t => horaAtual >= t.inicio && horaAtual <= t.fim);
-            
-            if (turno) {
-                if (!(regras.TURNO_SALVO === turno.id && regras.DATA_SALVA === dataHoje && regras.FILA_DE_PRODUTOS.length === 0)) {
-                    temTrabalho = true;
+        const agora = new Date();
+        const horaAtual = agora.getHours();
+        const minutoAtual = agora.getMinutes();
+        const agoraMS = agora.getTime();
+        const dataHoje = agora.toLocaleDateString();
+
+        for (const idGrupo in CONFIG.GRUPOS) {
+            const regras = CONFIG.GRUPOS[idGrupo];
+            let fila = regras.FILA_DE_PRODUTOS;
+            const turnoAtual = regras.TURNOS.find(t => horaAtual >= t.inicio && horaAtual <= t.fim);
+
+            // 🛡️ Prevenção: Limpa a fila velha que não tem horário de envio
+            if (fila.length > 0 && !fila[0].horarioEnvio) {
+                setGrupo(idGrupo, 'FILA_DE_PRODUTOS', []);
+                continue;
+            }
+
+            // 🛑 REGRA DE CORTE: Faltam 5 min ou menos para acabar o turno? Joga a fila fora.
+            if (turnoAtual && fila.length > 0) {
+                if (horaAtual === turnoAtual.fim && minutoAtual >= 55) {
+                    console.log(`⏰ Fim do turno ${turnoAtual.id} se aproximando no grupo ${regras.NOME}. Descartando a fila...`);
+                    setGrupo(idGrupo, 'FILA_DE_PRODUTOS', []);
+                    await client.sendMessage(idGrupo, `🎉 Fim das ofertas deste turno. O próximo começa em breve!`);
+                    continue;
+                }
+            }
+
+            // 🚀 DISPARO E AUTOCURA (CRASH RECOVERY)
+            if (fila.length > 0) {
+                // Chegou a hora do primeiro da fila? (Ou passou da hora por causa de queda de luz)
+                if (agoraMS >= fila[0].horarioEnvio) {
+                    const itemDaVez = fila.shift(); // Tira da fila
+                    const prod = itemDaVez.produto;
+
+                    console.log(`\n🚀 Disparando: ${prod.titulo}`);
+
+                    const isRelampago = turnoAtual ? turnoAtual.modo === 'RELAMPAGO' : false;
+                    let linhaPreco = `💰 *Preço:* R$ ${prod.preco}`;
+                    if (prod.precoAntigo) linhaPreco = `💰 *Preço:* De ~R$ ${prod.precoAntigo}~ por *R$ ${prod.preco}*`;
+                    const emoji = isRelampago ? '⚡ *OFERTA RELÂMPAGO* ⚡' : '🔥 *OFERTA ENCONTRADA* 🔥';
+                    
+                    const textoMensagem = `${emoji}\n\n📦 *Produto:* ${prod.titulo}\n⭐ *Nota:* ${prod.nota} (${prod.vendas}+ vendidos)\n📉 *Desconto:* ${prod.desconto}% OFF\n${linhaPreco}\n\n🛒 *Compre aqui:* ${prod.linkComissionado}`;
+
+                    const chat = await client.getChatById(idGrupo);
+                    await chat.sendStateTyping(); 
+                    await esperar(3000); // 3 segundinhos só pra dar o efeito "Digitando..." natural
+
+                    await client.sendMessage(idGrupo, textoMensagem);
+                    salvarNoHistorico(prod.linkLimpo);
+
+                    // 🔧 A MÁGICA DA AUTOCURA: Atrasou? Ajusta o resto pra não tomar ban do Zap!
+                    if (fila.length > 0) {
+                        const tempoRespiroMS = 3 * 60 * 1000; // 3 Minutos de atraso obrigatório entre mensagens encavaladas
+                        let tempoMinimoSeguro = Date.now() + tempoRespiroMS;
+                        let houveRecalculo = false;
+
+                        for (let i = 0; i < fila.length; i++) {
+                            // Se o próximo produto está marcado para sair antes do tempo de respiro seguro, empurra ele!
+                            if (fila[i].horarioEnvio < tempoMinimoSeguro) {
+                                fila[i].horarioEnvio = tempoMinimoSeguro;
+                                houveRecalculo = true;
+                            }
+                            tempoMinimoSeguro = fila[i].horarioEnvio + tempoRespiroMS; // O seguinte vai precisar de mais 3 min
+                        }
+
+                        if (houveRecalculo) {
+                            console.log(`⚠️ Sistema recálculou os próximos envios com 3 minutos de respiro para evitar flood.`);
+                        }
+                    }
+
+                    setGrupo(idGrupo, 'FILA_DE_PRODUTOS', fila); // Salva o estado novo
+
+                    if (fila.length === 0) {
+                        await client.sendMessage(idGrupo, `🎉 Fim das ofertas deste turno. Aproveitem!`);
+                    }
+                }
+            } 
+            // 🔍 GATILHO INICIAL: Fila vazia + Tá no turno certo + Ainda não rodou hoje
+            else if (!roboOcupado && turnoAtual) {
+                if (!(regras.TURNO_SALVO === turnoAtual.id && regras.DATA_SALVA === dataHoje)) {
+                    console.log(`\n⏰ Relógio apitou para o turno ${turnoAtual.id} (${regras.NOME})! Acordando o Garimpeiro...`);
+                    rodarRoboDeOfertas(idGrupo); 
                 }
             }
         }
-
-        if (temTrabalho) {
-            console.log(`⏰ Relógio apitou! Iniciando o motor...`);
-            await rodarRoboDeOfertas();
-        }
-    }, 60 * 1000);
+    }, 30 * 1000); // O Despachante acorda a cada 30 SEGUNDOS. Preciso e leve.
 });
 
 // ==========================================
-// PAINEL DE CONTROLE 
+// PAINEL DE CONTROLE (Sem alterações profundas)
 // ==========================================
 client.on('message_create', async msg => {
 
@@ -174,18 +222,16 @@ client.on('message_create', async msg => {
 
     if (msg.body.startsWith('!ofertas')) {
         const partes = msg.body.split(' ');
-        if (roboOcupado) return msg.reply('⚠️ O robô já está com a mão na massa processando uma fila!');
+        if (roboOcupado) return msg.reply('⚠️ O robô já está com a mão na massa processando uma busca!');
 
         if (partes.length > 1) {
             const nomeAlvo = partes[1].toUpperCase();
             const idAlvo = encontrarIdPorNome(nomeAlvo);
-
             if (!idAlvo) return msg.reply(`❌ Não encontrei nenhum grupo chamado *${nomeAlvo}*.`);
-
-            await msg.reply(`🫡 Iniciando a checagem APENAS para o grupo *${nomeAlvo}*.`);
+            await msg.reply(`🫡 Forçando a busca para o grupo *${nomeAlvo}*.`);
             await rodarRoboDeOfertas(idAlvo);
         } else {
-            await msg.reply('🫡 Checando relógio e fila de TODOS os grupos cadastrados.');
+            await msg.reply('🫡 Forçando busca para TODOS os grupos.');
             await rodarRoboDeOfertas();
         }
     }
@@ -203,51 +249,38 @@ client.on('message_create', async msg => {
         }
         texto += '\n📦 *GRUPOS ATIVOS:*\n';
         for (const [id, regras] of Object.entries(CONFIG.GRUPOS)) {
-            texto += `🏷️ *${regras.NOME}* (ID: ${id})\n`;
+            texto += `🏷️ *${regras.NOME}* (ID: ${id}) - Fila: ${regras.FILA_DE_PRODUTOS.length}\n`;
         }
-        texto += '\n_Use !resumo NOME_DO_GRUPO para ver os filtros dele._';
         await msg.reply(texto);
     }
 
     if (msg.body.startsWith('!addgrupo ')) {
         const partes = msg.body.split(' ');
-        if (partes.length < 3) return msg.reply('❌ Formato: `!addgrupo [ID_DO_GRUPO] [NOME_CURTO]`');
-
-        const idNovo = partes[1];
-        const nomeNovo = partes[2].toUpperCase();
-
-        if (addGrupo(idNovo, nomeNovo)) {
-            await msg.reply(`✅ Grupo *${nomeNovo}* adicionado! Use !template ${nomeNovo} para configurar os filtros.`);
+        if (partes.length < 3) return msg.reply('❌ Formato: `!addgrupo [ID] [NOME]`');
+        if (addGrupo(partes[1], partes[2].toUpperCase())) {
+            await msg.reply(`✅ Grupo adicionado! Use !template ${partes[2].toUpperCase()} para configurar.`);
         } else {
             await msg.reply(`⚠️ Este grupo já estava cadastrado.`);
         }
     }
+    
 
     if (msg.body.startsWith('!renomear ')) {
         const partes = msg.body.split(' ');
-        if (partes.length < 3) return msg.reply('❌ Formato: `!renomear NOME_ANTIGO NOME_NOVO`');
-
-        const nomeAntigo = partes[1].toUpperCase();
-        const nomeNovo = partes[2].toUpperCase();
-
-        const idGrupo = encontrarIdPorNome(nomeAntigo);
-        if (!idGrupo) return msg.reply(`❌ Não encontrei nenhum grupo chamado *${nomeAntigo}*.`);
-
-        if (encontrarIdPorNome(nomeNovo)) return msg.reply(`❌ Já existe um grupo com o nome *${nomeNovo}*. Escolha outro.`);
-
-        setGrupo(idGrupo, 'NOME', nomeNovo);
-        await msg.reply(`✅ O grupo *${nomeAntigo}* foi renomeado para *${nomeNovo}* com sucesso!`);
+        if (partes.length < 3) return;
+        const idGrupo = encontrarIdPorNome(partes[1].toUpperCase());
+        if (!idGrupo) return;
+        setGrupo(idGrupo, 'NOME', partes[2].toUpperCase());
+        await msg.reply(`✅ Renomeado para *${partes[2].toUpperCase()}*!`);
     }
 
     if (msg.body.startsWith('!resumo ')) {
         const nome = msg.body.replace('!resumo ', '').trim();
         const idGrupo = encontrarIdPorNome(nome);
-        if (!idGrupo) return msg.reply(`❌ Não encontrei nenhum grupo chamado *${nome}*.`);
-
-        const regras = CONFIG.GRUPOS[idGrupo];
-        let texto = `📊 *FILTROS DO GRUPO: ${regras.NOME}*\n\n`;
-        for (const [k, v] of Object.entries(regras)) {
-            if (k === 'NOME' || k === 'FILA_DE_PRODUTOS' || k === 'TURNOS') continue;
+        if (!idGrupo) return;
+        let texto = `📊 *FILTROS: ${CONFIG.GRUPOS[idGrupo].NOME}*\n\n`;
+        for (const [k, v] of Object.entries(CONFIG.GRUPOS[idGrupo])) {
+            if (['NOME', 'FILA_DE_PRODUTOS', 'TURNOS'].includes(k)) continue;
             texto += `*${k}:* ${JSON.stringify(v)}\n`;
         }
         await msg.reply(texto);
@@ -256,169 +289,125 @@ client.on('message_create', async msg => {
     if (msg.body.startsWith('!template ')) {
         const nome = msg.body.replace('!template ', '').trim();
         const idGrupo = encontrarIdPorNome(nome);
-        if (!idGrupo) return msg.reply(`❌ Não encontrei nenhum grupo chamado *${nome}*.`);
-
-        const regras = CONFIG.GRUPOS[idGrupo];
-        let texto = `!update ${regras.NOME}\n`;
-        for (const [k, v] of Object.entries(regras)) {
-            if (k === 'NOME' || k === 'FILA_DE_PRODUTOS' || k === 'TURNOS' || k === 'TURNO_SALVO' || k === 'DATA_SALVA' || k === 'ROTA_ATUAL' || k === 'QTD_ATUAL') continue;
-            let valorEditavel = Array.isArray(v) ? v.join(', ') : v;
-            texto += `${k}=${valorEditavel}\n`;
+        if (!idGrupo) return;
+        let texto = `!update ${nome}\n`;
+        for (const [k, v] of Object.entries(CONFIG.GRUPOS[idGrupo])) {
+            if (['NOME', 'FILA_DE_PRODUTOS', 'TURNOS', 'TURNO_SALVO', 'DATA_SALVA', 'ROTA_ATUAL', 'QTD_ATUAL'].includes(k)) continue;
+            texto += `${k}=${Array.isArray(v) ? v.join(', ') : v}\n`;
         }
-        await msg.reply(`Copie a mensagem abaixo inteira, altere os valores depois do sinal de igual (=) e me envie de volta:\n\n${texto}`);
+        await msg.reply(`Copie, altere e devolva:\n\n${texto}`);
     }
 
     if (msg.body.startsWith('!update ')) {
         const linhas = msg.body.split('\n');
-        const cabecalho = linhas[0].split(' ');
-        if (cabecalho.length < 2) return;
-
-        const nome = cabecalho[1];
+        const nome = linhas[0].split(' ')[1];
         const idGrupo = encontrarIdPorNome(nome);
-        if (!idGrupo) return msg.reply(`❌ Não encontrei nenhum grupo chamado *${nome}*.`);
-
+        if (!idGrupo) return;
         let atualizados = 0;
         for (let i = 1; i < linhas.length; i++) {
             const linha = linhas[i].trim();
             if (!linha || !linha.includes('=')) continue;
-
-            const separadorIndex = linha.indexOf('=');
-            const chave = linha.substring(0, separadorIndex).trim().toUpperCase();
-            const valorBruto = linha.substring(separadorIndex + 1).trim();
-
+            const sep = linha.indexOf('=');
+            const chave = linha.substring(0, sep).trim().toUpperCase();
+            const valorBruto = linha.substring(sep + 1).trim();
             if (CONFIG.GRUPOS[idGrupo][chave] !== undefined) {
                 let valorFinal = valorBruto;
                 const tipoAtual = typeof CONFIG.GRUPOS[idGrupo][chave];
-                const isArray = Array.isArray(CONFIG.GRUPOS[idGrupo][chave]);
-
-                if (isArray) {
-                    valorFinal = valorBruto.split(',').filter(x => x.trim() !== '').map(x => x.trim());
-                } else if (tipoAtual === 'number') {
-                    valorFinal = Number(valorBruto);
-                    if (isNaN(valorFinal)) continue;
-                } else if (tipoAtual === 'boolean') {
-                    valorFinal = valorBruto.toLowerCase() === 'true';
-                }
-
+                if (Array.isArray(CONFIG.GRUPOS[idGrupo][chave])) valorFinal = valorBruto.split(',').filter(x => x.trim()).map(x => x.trim());
+                else if (tipoAtual === 'number') valorFinal = Number(valorBruto) || 0;
+                else if (tipoAtual === 'boolean') valorFinal = valorBruto.toLowerCase() === 'true';
                 setGrupo(idGrupo, chave, valorFinal);
                 atualizados++;
             }
         }
-        await msg.reply(`✅ Atualização em massa concluída! ${atualizados} configurações alteradas no grupo *${nome}*.`);
+        await msg.reply(`✅ ${atualizados} configurações alteradas no grupo *${nome}*.`);
     }
 
-    if (msg.body.startsWith('!setgrupo ')) {
-        const partes = msg.body.split(' ');
-        if (partes.length < 4) return msg.reply('❌ Formato: `!setgrupo NOME_DO_GRUPO CHAVE valor`');
-
-        const nome = partes[1];
-        const idGrupo = encontrarIdPorNome(nome);
-        if (!idGrupo) return msg.reply(`❌ Não encontrei nenhum grupo chamado *${nome}*.`);
-
-        const chave = partes[2].toUpperCase();
-        let valorBruto = msg.body.substring(msg.body.indexOf(partes[3]));
-
-        if (CONFIG.GRUPOS[idGrupo][chave] === undefined) return msg.reply(`❌ Regra inválida.`);
-
-        let valorFinal = valorBruto;
-        const tipoAtual = typeof CONFIG.GRUPOS[idGrupo][chave];
-
-        if (Array.isArray(CONFIG.GRUPOS[idGrupo][chave])) {
-            valorFinal = valorBruto.split(',').map(i => i.trim());
-        } else if (tipoAtual === 'number') {
-            valorFinal = Number(valorBruto);
-        }
-
-        setGrupo(idGrupo, chave, valorFinal);
-        await msg.reply(`✅ O grupo *${nome}* teve a regra *${chave}* atualizada!`);
-    }
-
-    // 🎯 11. VER O CRONOGRAMA DE TURNOS
     if (msg.body.startsWith('!turnos ')) {
         const nome = msg.body.replace('!turnos ', '').trim();
         const idGrupo = encontrarIdPorNome(nome);
-        if (!idGrupo) return msg.reply(`❌ Não encontrei nenhum grupo chamado *${nome}*.`);
-
-        const turnos = CONFIG.GRUPOS[idGrupo].TURNOS;
+        if (!idGrupo) return;
         let texto = `🕒 *CRONOGRAMA: ${nome.toUpperCase()}*\n\n`;
-        
-        turnos.forEach(t => {
-            const emoji = t.modo === 'RELAMPAGO' ? '⚡' : '📦';
-            const horaFimHumana = t.fim + 1; // 🪄 TRUQUE DE UX: Soma 1 só para a mensagem do Whats!
-            texto += `${emoji} *[${t.id}]* ${t.inicio}h às ${horaFimHumana}h\n`;
-            texto += `↳ Modo: ${t.modo} | A cada ${t.intervaloMin} min\n\n`;
+        CONFIG.GRUPOS[idGrupo].TURNOS.forEach(t => {
+            texto += `${t.modo === 'RELAMPAGO' ? '⚡' : '📦'} *[${t.id}]* ${t.inicio}h às ${t.fim + 1}h - A cada ${t.intervaloMin} min\n`;
         });
-        
         await msg.reply(texto);
     }
 
-    // 🎯 12. ALTERAR UM TURNO ESPECÍFICO
-    if (msg.body.startsWith('!setturno ')) {
-        const partes = msg.body.split(' ');
-        if (partes.length < 6) return msg.reply('❌ Formato: `!setturno [GRUPO] [ID_TURNO] [INICIO] [FIM] [MINUTOS]`\nEx: !setturno BEBES T2 12 13 9');
-
-        const nome = partes[1].toUpperCase();
-        const idGrupo = encontrarIdPorNome(nome);
-        if (!idGrupo) return msg.reply(`❌ Grupo *${nome}* não encontrado.`);
-
-        const idTurno = partes[2].toUpperCase();
-        const novoInicio = parseInt(partes[3]);
-        
-        const novoFimHumano = parseInt(partes[4]);
-        const novoFimRobo = novoFimHumano - 1; // 🪄 TRUQUE INVERSO: Subtrai 1 para o robô entender o limite
-        
-        const novoIntervalo = parseInt(partes[5]);
-
-        const turnosAtuais = CONFIG.GRUPOS[idGrupo].TURNOS;
-        const index = turnosAtuais.findIndex(t => t.id === idTurno);
-
-        if (index === -1) return msg.reply(`❌ Turno *${idTurno}* não existe neste grupo.`);
-
-        turnosAtuais[index].inicio = novoInicio;
-        turnosAtuais[index].fim = novoFimRobo; // Salva a versão da máquina
-        turnosAtuais[index].intervaloMin = novoIntervalo;
-
-        setGrupo(idGrupo, 'TURNOS', turnosAtuais);
-        await msg.reply(`✅ Turno *${idTurno}* atualizado com sucesso no grupo *${nome}*!\nNovo horário: ${novoInicio}h às ${novoFimHumano}h a cada ${novoIntervalo} min.`);
-    }
-
     if (msg.body === '!help' || msg.body === '!ajuda') {
-        const textoHelp = `🤖 *CENTRAL DE COMANDOS DO ROBÔ* 🤖
-
-⚙️ *CONFIGURAÇÕES GERAIS*
-*!idgrupo* - Descobre o ID do chat atual.
-*!config* - Mostra as config globais e grupos ativos.
-*!cookie [texto]* - Atualiza o cookie do ML.
-*!setgeral [CHAVE] [VALOR]* - Altera uma regra geral.
-
-📦 *GERENCIAMENTO DE GRUPOS*
-*!addgrupo [ID] [NOME]* - Cadastra um novo grupo.
-*!renomear [NOME_ANTIGO] [NOME_NOVO]* - Troca o apelido do grupo.
-*!resumo [NOME]* - Mostra os filtros de um grupo.
-*!template [NOME]* - Gera o formulário de edição em massa.
-*!setgrupo [NOME] [REGRA] [VALOR]* - Altera uma regra específica.
-
-🚀 *AÇÃO*
-*!ofertas* - Checa fila e relógio de todos os grupos.
-*!ofertas [NOME]* - Checa apenas o grupo específico (Ex: !ofertas BEBE).`;
-
+        const textoHelp = `🤖 *PAINEL DE COMANDOS - NIMBUS BOT* ☁️\n\n` +
+        `*🛠️ GERENCIAMENTO DE GRUPOS*\n` +
+        `🔸 *!idgrupo* - Descobre o ID do chat atual\n` +
+        `🔸 *!addgrupo [ID] [NOME]* - Cadastra um novo grupo\n` +
+        `🔸 *!renomear [ANTIGO] [NOVO]* - Muda o nome de um grupo\n` +
+        `🔸 *!template [NOME]* - Gera o molde para configurar filtros\n` +
+        `🔸 *!update [NOME]* - Atualiza filtros (cole o template abaixo)\n` +
+        `🔸 *!resumo [NOME]* - Mostra os filtros atuais do grupo\n\n` +
+        `*⏰ CRONOGRAMA E FILA*\n` +
+        `🔸 *!turnos [NOME]* - Mostra os horários de funcionamento\n` +
+        `🔸 *!setturno [NOME] [ID] [INICIO] [FIM] [INTERVALO]* - Altera um turno\n` +
+        `🔸 *!fila [NOME]* - Mostra os próximos produtos agendados\n` +
+        `🔸 *!ofertas [NOME]* - Força o garimpo e o envio imediato\n` +
+        `🔸 *!resetar [NOME]* - Zera a fila e a memória do dia\n\n` +
+        `*⚙️ SISTEMA*\n` +
+        `🔸 *!config* - Mostra o status do piloto automático e grupos\n` +
+        `🔸 *!setgeral PILOTO_AUTOMATICO_LIGADO [true/false]* - Liga/Desliga o bot\n` +
+        `🔸 *!cookie [VALOR]* - Atualiza o cookie do Mercado Livre`;
+        
         await msg.reply(textoHelp);
     }
+
+    if (msg.body.startsWith('!setturno ')) {
+        const partes = msg.body.split(' ');
+        if (partes.length < 6) return;
+        const idGrupo = encontrarIdPorNome(partes[1].toUpperCase());
+        if (!idGrupo) return;
+        const turnos = CONFIG.GRUPOS[idGrupo].TURNOS;
+        const index = turnos.findIndex(t => t.id === partes[2].toUpperCase());
+        if (index === -1) return;
+        turnos[index].inicio = parseInt(partes[3]);
+        turnos[index].fim = parseInt(partes[4]) - 1;
+        turnos[index].intervaloMin = parseInt(partes[5]);
+        setGrupo(idGrupo, 'TURNOS', turnos);
+        await msg.reply(`✅ Turno atualizado!`);
+    }
+    // 👇 NOVO COMANDO PARA VER A FILA 👇
+    if (msg.body.startsWith('!fila ')) {
+        const nome = msg.body.replace('!fila ', '').trim().toUpperCase();
+        const idGrupo = encontrarIdPorNome(nome);
+        
+        if (!idGrupo) return msg.reply(`❌ Não encontrei nenhum grupo chamado *${nome}*.`);
+        
+        const fila = CONFIG.GRUPOS[idGrupo].FILA_DE_PRODUTOS;
+        if (!fila || fila.length === 0) return msg.reply(`📭 A fila do grupo *${nome}* está vazia no momento.`);
+
+        let texto = `📋 *FILA DE ENVIOS - ${nome}*\n📦 Total aguardando: ${fila.length} produtos\n\n`;
+        
+        // Mostra no máximo os próximos 10 envios para não travar o zap
+        const limite = Math.min(fila.length, 10);
+        for (let i = 0; i < limite; i++) {
+            const item = fila[i];
+            const horaFormatada = new Date(item.horarioEnvio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            texto += `⏰ *${horaFormatada}* - ${item.produto.titulo.substring(0, 25)}...\n`;
+        }
+        
+        if (fila.length > limite) {
+            texto += `\n_...e mais ${fila.length - limite} produtos agendados para depois._`;
+        }
+
+        await msg.reply(texto);
+    }
+    // 👆 FIM DO NOVO COMANDO 👆
 });
 
 client.on('message_create', async msg => {
     if (msg.body.startsWith('!setgeral ') && (msg.from === CONFIG.GERAL.ID_GRUPO_ADMIN || msg.to === CONFIG.GERAL.ID_GRUPO_ADMIN)) {
         const partes = msg.body.split(' ');
-        if (partes.length < 3) return msg.reply('❌ Formato: `!setgeral CHAVE valor`');
-
         const chave = partes[1].toUpperCase();
         let valorFinal = msg.body.substring(msg.body.indexOf(partes[2]));
-
-        if (CONFIG.GERAL[chave] === undefined) return msg.reply(`❌ Chave geral inexistente.`);
-
+        if (CONFIG.GERAL[chave] === undefined) return;
         if (typeof CONFIG.GERAL[chave] === 'number') valorFinal = Number(valorFinal);
         if (typeof CONFIG.GERAL[chave] === 'boolean') valorFinal = valorFinal.toLowerCase() === 'true';
-
         setGeral(chave, valorFinal);
         await msg.reply(`✅ Config Geral *${chave}* atualizada!`);
     }

@@ -11,3 +11,6 @@ poly-component__price
 
 card produto:
 andes-card poly-card poly-card--grid-card poly-card--xlarge andes-card--flat andes-card--primary andes-card--padding-0
+
+Comando pra entrar no SSH do servidor:
+ssh -i ssh-key.key ubuntu@204.216.151.84
