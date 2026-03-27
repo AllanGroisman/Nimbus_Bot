@@ -24,11 +24,11 @@ const CONFIG_PADRAO_GRUPO = {
 
     TURNOS: [
         { id: 'T1', modo: 'PADRAO', inicio: '09:00', fim: '11:59', intervaloMin: 20 },
-        { id: 'T2', modo: 'RELAMPAGO', inicio: '12:00', fim: '12:59', intervaloMin: 9 },
+        { id: 'T2', modo: 'RELAMPAGO', inicio: '12:01', fim: '12:59', intervaloMin: 9 },
         { id: 'T3', modo: 'PADRAO', inicio: '13:00', fim: '17:59', intervaloMin: 20 },
-        { id: 'T4', modo: 'RELAMPAGO', inicio: '18:00', fim: '18:59', intervaloMin: 9 },
+        { id: 'T4', modo: 'RELAMPAGO', inicio: '18:01', fim: '18:59', intervaloMin: 9 },
         { id: 'T5', modo: 'PADRAO', inicio: '19:00', fim: '20:59', intervaloMin: 20 },
-        { id: 'T6', modo: 'RELAMPAGO', inicio: '21:00', fim: '21:59', intervaloMin: 9 }
+        { id: 'T6', modo: 'RELAMPAGO', inicio: '21:01', fim: '21:59', intervaloMin: 9 }
     ],
 
     FILA_DE_PRODUTOS: [],

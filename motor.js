@@ -84,7 +84,7 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
         console.log(`\n🔍 Iniciando garimpo para ${regrasDoGrupo.NOME} | Turno: ${turnoEncontrado.id} (Buscando ${qtdFaltante} faltantes)`);
         
         try {
-            await client.sendMessage(idGrupo, `⏳ Pessoal, garimpando as melhores ofertas...`);
+            //await client.sendMessage(idGrupo, `⏳ Pessoal, garimpando as melhores ofertas...`);
             
             // Ele vai caçar exatamente a quantidade que falta!
             regrasDoGrupo.QTD_ATUAL = qtdFaltante; 
@@ -94,7 +94,7 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
             // 👇 TRAVA DE SEGURANÇA 👇
             if (!novosProdutos || !Array.isArray(novosProdutos) || novosProdutos.length === 0) {
                 console.log(`⚠️ O Mercado Livre não retornou produtos válidos para ${regrasDoGrupo.NOME}.`);
-                await client.sendMessage(idGrupo, `❌ Ocorreu um problema na busca ou não há produtos no padrão exigido agora. O Garimpeiro vai tentar de novo mais tarde.`);
+                //await client.sendMessage(idGrupo, `❌ Ocorreu um problema na busca ou não há produtos no padrão exigido agora. O Garimpeiro vai tentar de novo mais tarde.`);
                 continue; // Aborta o agendamento e pula para o próximo grupo
             }
 
@@ -157,7 +157,7 @@ function iniciarDespachante(client) {
                 if (fimMin - minutosAtuais <= 5) {
                     console.log(`⏰ Fim do turno se aproximando. Descartando a fila...`);
                     setGrupo(idGrupo, 'FILA_DE_PRODUTOS', []);
-                    await client.sendMessage(idGrupo, `🎉 Fim das ofertas deste turno. O próximo começa em breve!`);
+                    //await client.sendMessage(idGrupo, `🎉 Fim das ofertas deste turno. O próximo começa em breve!`);
                     continue;
                 }
             }
@@ -217,7 +217,7 @@ function iniciarDespachante(client) {
                     setGrupo(idGrupo, 'FILA_DE_PRODUTOS', fila); 
 
                     if (fila.length === 0) {
-                        await client.sendMessage(idGrupo, `🎉 Fim das ofertas deste turno. Aproveitem!`);
+                        //await client.sendMessage(idGrupo, `🎉 Fim das ofertas deste turno. Aproveitem!`);
                     }
                 }
             } 

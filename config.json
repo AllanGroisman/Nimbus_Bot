@@ -8,16 +8,24 @@
   "GRUPOS": {
     "120363423403602206@g.us": {
       "NOME": "BEBE",
-      "LIMITE_PAGINAS_BUSCA": 10,
-      "PALAVRAS_CHAVE": [],
+      "LIMITE_PAGINAS_BUSCA": 5,
+      "PALAVRAS_CHAVE": [
+        "FRALDA",
+        "BOLSA",
+        "MACACÃO",
+        "BODY",
+        "CARRINHO",
+        "BERÇO",
+        "MAMADEIRA"
+      ],
       "DIAS_PARA_REPETIR_PRODUTO": 2,
       "ROTA_PADRAO": "?category=MLB1384",
-      "DESCONTO_MINIMO_PADRAO": 0,
-      "VENDAS_MINIMAS_PADRAO": 0,
-      "NOTA_MINIMA_PADRAO": 4.5,
+      "DESCONTO_MINIMO_PADRAO": 20,
+      "VENDAS_MINIMAS_PADRAO": 500,
+      "NOTA_MINIMA_PADRAO": 4.6,
       "ROTA_RELAMPAGO": "?category=MLB1384",
-      "DESCONTO_MINIMO_RELAMPAGO": 0,
-      "VENDAS_MINIMAS_RELAMPAGO": 0,
+      "DESCONTO_MINIMO_RELAMPAGO": 20,
+      "VENDAS_MINIMAS_RELAMPAGO": 100,
       "NOTA_MINIMA_RELAMPAGO": 4.5,
       "TURNOS": [
         {
@@ -30,7 +38,7 @@
         {
           "id": "T2",
           "modo": "RELAMPAGO",
-          "inicio": "12:00",
+          "inicio": "12:01",
           "fim": "12:59",
           "intervaloMin": 9
         },
@@ -44,7 +52,7 @@
         {
           "id": "T4",
           "modo": "RELAMPAGO",
-          "inicio": "18:00",
+          "inicio": "18:01",
           "fim": "18:59",
           "intervaloMin": 9
         },
@@ -58,65 +66,19 @@
         {
           "id": "T6",
           "modo": "RELAMPAGO",
-          "inicio": "21:00",
+          "inicio": "21:01",
           "fim": "21:59",
           "intervaloMin": 9
         }
       ],
-      "FILA_DE_PRODUTOS": [
-        {
-          "produto": {
-            "titulo": "Cadeira De Descanso Vibratória Funtime Maxibaby 18kgs - Leão Leão",
-            "preco": "179",
-            "precoAntigo": "369",
-            "linkOriginal": "https://www.mercadolivre.com.br/cadeira-de-descanso-vibratoria-funtime-maxibaby-18kgs--leao/up/MLBU1715855899?pdp_filters=deal%3AMLB779362-1#polycard_client=offers&deal_print_id=18c8657d-245d-4a72-8a92-9a9eeb349368&position=18&tracking_id=a9934942-5a37-42ea-9246-a14579eb5735&wid=MLB2062056582&sid=offers",
-            "linkLimpo": "https://www.mercadolivre.com.br/cadeira-de-descanso-vibratoria-funtime-maxibaby-18kgs--leao/up/MLBU1715855899",
-            "linkComissionado": "https://meli.la/1oSozHd",
-            "desconto": 51,
-            "nota": 4.8,
-            "vendas": 1083,
-            "imagem": "https://http2.mlstatic.com/D_Q_NP_2X_816250-MLB47964270676_102021-AB.webp"
-          },
-          "horarioEnvio": 1774564960144
-        },
-        {
-          "produto": {
-            "titulo": "Cercadinho Grande 200x150 Proteção Para Bebês Cinza",
-            "preco": "259",
-            "precoAntigo": "499",
-            "linkOriginal": "https://www.mercadolivre.com.br/cercadinho-grande-200x150-proteco-para-bebs/p/MLB46681505?pdp_filters=deal%3AMLB779362-1#polycard_client=offers&deal_print_id=18c8657d-245d-4a72-8a92-9a9eeb349368&position=20&tracking_id=a9934942-5a37-42ea-9246-a14579eb5735&wid=MLB4406618329&sid=offers",
-            "linkLimpo": "https://www.mercadolivre.com.br/cercadinho-grande-200x150-proteco-para-bebs/p/MLB46681505",
-            "linkComissionado": "https://meli.la/1gVRYv5",
-            "desconto": 48,
-            "nota": 4.8,
-            "vendas": 286,
-            "imagem": "https://http2.mlstatic.com/D_Q_NP_2X_708355-MLA103746074186_012026-AB.webp"
-          },
-          "horarioEnvio": 1774565854910
-        },
-        {
-          "produto": {
-            "titulo": "Banheira Bebê Dobrável Com Suporte Termômetro E Almofada Cor Cinza",
-            "preco": "336",
-            "precoAntigo": "499",
-            "linkOriginal": "https://www.mercadolivre.com.br/banheira-beb-dobravel-com-suporte-termmetro-e-almofada-cor-cinza/p/MLB51979690?pdp_filters=deal%3AMLB779362-1#polycard_client=offers&deal_print_id=18c8657d-245d-4a72-8a92-9a9eeb349368&position=22&tracking_id=a9934942-5a37-42ea-9246-a14579eb5735&wid=MLB6475609220&sid=offers",
-            "linkLimpo": "https://www.mercadolivre.com.br/banheira-beb-dobravel-com-suporte-termmetro-e-almofada-cor-cinza/p/MLB51979690",
-            "linkComissionado": "https://meli.la/1zymuqS",
-            "desconto": 32,
-            "nota": 4.9,
-            "vendas": 573,
-            "imagem": "https://http2.mlstatic.com/D_Q_NP_2X_887090-MLA96078823773_102025-AB.webp"
-          },
-          "horarioEnvio": 1774567206770
-        }
-      ],
-      "TURNO_SALVO": "T5",
+      "FILA_DE_PRODUTOS": [],
+      "TURNO_SALVO": "T6",
       "DATA_SALVA": "26/03/2026",
       "ROTA_ATUAL": "?category=MLB1384",
-      "DESCONTO_ATUAL": 0,
-      "VENDAS_ATUAIS": 0,
+      "DESCONTO_ATUAL": 20,
+      "VENDAS_ATUAIS": 100,
       "NOTA_ATUAL": 4.5,
-      "QTD_ATUAL": 5,
+      "QTD_ATUAL": 6,
       "FILA_AGUARDANDO_APROVACAO": []
     },
     "120363407976363861@g.us": {
@@ -143,7 +105,7 @@
         {
           "id": "T2",
           "modo": "RELAMPAGO",
-          "inicio": "12:00",
+          "inicio": "12:01",
           "fim": "12:59",
           "intervaloMin": 9
         },
@@ -157,7 +119,7 @@
         {
           "id": "T4",
           "modo": "RELAMPAGO",
-          "inicio": "18:00",
+          "inicio": "18:01",
           "fim": "18:59",
           "intervaloMin": 9
         },
@@ -171,65 +133,19 @@
         {
           "id": "T6",
           "modo": "RELAMPAGO",
-          "inicio": "21:00",
+          "inicio": "21:01",
           "fim": "21:59",
           "intervaloMin": 9
         }
       ],
-      "FILA_DE_PRODUTOS": [
-        {
-          "produto": {
-            "titulo": "Pc Computador Cpu Intel Core I7 16gb Ssd 512gb Rede Gigabit 16 Gb",
-            "preco": "1.549",
-            "precoAntigo": "1.877",
-            "linkOriginal": "https://www.mercadolivre.com.br/pc-computador-cpu-intel-core-i7-16gb-ssd-512gb-rede-gigabit/up/MLBU1980268192?pdp_filters=deal%3AMLB779362-1#polycard_client=offers&deal_print_id=2d045d3f-94f6-4e04-8971-002a8e8dc3be&position=43&tracking_id=1b260c22-a97d-4339-9ec5-65151eb3dc2d&wid=MLB3610221338&sid=offers",
-            "linkLimpo": "https://www.mercadolivre.com.br/pc-computador-cpu-intel-core-i7-16gb-ssd-512gb-rede-gigabit/up/MLBU1980268192",
-            "linkComissionado": "https://meli.la/2tbpJcT",
-            "desconto": 17,
-            "nota": 4.7,
-            "vendas": 76,
-            "imagem": "https://http2.mlstatic.com/D_Q_NP_2X_627244-MLB106510591147_022026-AB.webp"
-          },
-          "horarioEnvio": 1774565226181
-        },
-        {
-          "produto": {
-            "titulo": "Placa-mãe Asus P/amd Am4 B550m-plus Tuf Gaming 4xddr4 Matx Preto",
-            "preco": "773",
-            "precoAntigo": "1.096",
-            "linkOriginal": "https://www.mercadolivre.com.br/placamae-asus-pamd-am4-b550mplus-tuf-gaming-4xddr4-matx/up/MLBU1984959746?pdp_filters=deal%3AMLB779362-1#polycard_client=offers&deal_print_id=2d045d3f-94f6-4e04-8971-002a8e8dc3be&position=46&tracking_id=1b260c22-a97d-4339-9ec5-65151eb3dc2d&wid=MLB3838209495&sid=offers",
-            "linkLimpo": "https://www.mercadolivre.com.br/placamae-asus-pamd-am4-b550mplus-tuf-gaming-4xddr4-matx/up/MLBU1984959746",
-            "linkComissionado": "https://meli.la/2NHkdzv",
-            "desconto": 29,
-            "nota": 4.9,
-            "vendas": 62,
-            "imagem": "https://http2.mlstatic.com/D_Q_NP_2X_739906-MLB93407821759_092025-AB.webp"
-          },
-          "horarioEnvio": 1774566603461
-        },
-        {
-          "produto": {
-            "titulo": "Computador All In One I5, 16gb Ram, Ssd 240gb Monitor 21.5 Branco",
-            "preco": "2.364",
-            "precoAntigo": "2.849",
-            "linkOriginal": "https://www.mercadolivre.com.br/computador-all-in-one-i5-16gb-ram-ssd-240gb-monitor-215/p/MLB62242778?pdp_filters=deal%3AMLB779362-1#polycard_client=offers&deal_print_id=2d045d3f-94f6-4e04-8971-002a8e8dc3be&position=48&tracking_id=1b260c22-a97d-4339-9ec5-65151eb3dc2d&wid=MLB4381939165&sid=offers",
-            "linkLimpo": "https://www.mercadolivre.com.br/computador-all-in-one-i5-16gb-ram-ssd-240gb-monitor-215/p/MLB62242778",
-            "linkComissionado": "https://meli.la/22iH9xN",
-            "desconto": 17,
-            "nota": 5,
-            "vendas": 15,
-            "imagem": "https://http2.mlstatic.com/D_Q_NP_2X_963182-MLA105581017468_012026-AB.webp"
-          },
-          "horarioEnvio": 1774568044686
-        }
-      ],
-      "TURNO_SALVO": "T5",
+      "FILA_DE_PRODUTOS": [],
+      "TURNO_SALVO": "T6",
       "DATA_SALVA": "26/03/2026",
       "ROTA_ATUAL": "?category=MLB1648",
       "DESCONTO_ATUAL": 0,
       "VENDAS_ATUAIS": 0,
       "NOTA_ATUAL": 4.5,
-      "QTD_ATUAL": 5,
+      "QTD_ATUAL": 6,
       "FILA_AGUARDANDO_APROVACAO": []
     }
   }
