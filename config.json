@@ -6,94 +6,19 @@
     "PILOTO_AUTOMATICO_LIGADO": true
   },
   "GRUPOS": {
-    "120363423403602206@g.us": {
+    "120363408997004605@g.us": {
       "NOME": "BEBE",
       "LIMITE_PAGINAS_BUSCA": 5,
-      "PALAVRAS_CHAVE": [
-        "FRALDA",
-        "BOLSA",
-        "MACACÃO",
-        "BODY",
-        "CARRINHO",
-        "BERÇO",
-        "MAMADEIRA"
-      ],
+      "PALAVRAS_CHAVE": [],
       "DIAS_PARA_REPETIR_PRODUTO": 2,
       "ROTA_PADRAO": "?category=MLB1384",
       "DESCONTO_MINIMO_PADRAO": 20,
-      "VENDAS_MINIMAS_PADRAO": 500,
+      "VENDAS_MINIMAS_PADRAO": 50,
       "NOTA_MINIMA_PADRAO": 4.6,
       "ROTA_RELAMPAGO": "?category=MLB1384",
       "DESCONTO_MINIMO_RELAMPAGO": 20,
       "VENDAS_MINIMAS_RELAMPAGO": 100,
-      "NOTA_MINIMA_RELAMPAGO": 4.5,
-      "TURNOS": [
-        {
-          "id": "T1",
-          "modo": "PADRAO",
-          "inicio": "9:00",
-          "fim": "11:59",
-          "intervaloMin": 20
-        },
-        {
-          "id": "T2",
-          "modo": "RELAMPAGO",
-          "inicio": "12:01",
-          "fim": "12:59",
-          "intervaloMin": 9
-        },
-        {
-          "id": "T3",
-          "modo": "PADRAO",
-          "inicio": "13:00",
-          "fim": "17:59",
-          "intervaloMin": 20
-        },
-        {
-          "id": "T4",
-          "modo": "RELAMPAGO",
-          "inicio": "18:01",
-          "fim": "18:59",
-          "intervaloMin": 9
-        },
-        {
-          "id": "T5",
-          "modo": "PADRAO",
-          "inicio": "19:00",
-          "fim": "20:59",
-          "intervaloMin": 20
-        },
-        {
-          "id": "T6",
-          "modo": "RELAMPAGO",
-          "inicio": "21:01",
-          "fim": "21:59",
-          "intervaloMin": 9
-        }
-      ],
-      "FILA_DE_PRODUTOS": [],
-      "TURNO_SALVO": "T6",
-      "DATA_SALVA": "26/03/2026",
-      "ROTA_ATUAL": "?category=MLB1384",
-      "DESCONTO_ATUAL": 20,
-      "VENDAS_ATUAIS": 100,
-      "NOTA_ATUAL": 4.5,
-      "QTD_ATUAL": 6,
-      "FILA_AGUARDANDO_APROVACAO": []
-    },
-    "120363407976363861@g.us": {
-      "NOME": "INFORMATICA",
-      "LIMITE_PAGINAS_BUSCA": 10,
-      "PALAVRAS_CHAVE": [],
-      "DIAS_PARA_REPETIR_PRODUTO": 2,
-      "ROTA_PADRAO": "?category=MLB1648",
-      "DESCONTO_MINIMO_PADRAO": 0,
-      "VENDAS_MINIMAS_PADRAO": 0,
-      "NOTA_MINIMA_PADRAO": 4.5,
-      "ROTA_RELAMPAGO": "?category=MLB1648",
-      "DESCONTO_MINIMO_RELAMPAGO": 0,
-      "VENDAS_MINIMAS_RELAMPAGO": 0,
-      "NOTA_MINIMA_RELAMPAGO": 4.5,
+      "NOTA_MINIMA_RELAMPAGO": 4.7,
       "TURNOS": [
         {
           "id": "T1",
@@ -140,11 +65,11 @@
       ],
       "FILA_DE_PRODUTOS": [],
       "TURNO_SALVO": "T6",
-      "DATA_SALVA": "26/03/2026",
-      "ROTA_ATUAL": "?category=MLB1648",
-      "DESCONTO_ATUAL": 0,
-      "VENDAS_ATUAIS": 0,
-      "NOTA_ATUAL": 4.5,
+      "DATA_SALVA": "06/04/2026",
+      "ROTA_ATUAL": "?category=MLB1384",
+      "DESCONTO_ATUAL": 20,
+      "VENDAS_ATUAIS": 100,
+      "NOTA_ATUAL": 4.7,
       "QTD_ATUAL": 6,
       "FILA_AGUARDANDO_APROVACAO": []
     }
