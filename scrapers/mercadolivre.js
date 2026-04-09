@@ -130,7 +130,7 @@ async function buscarOfertasML(regrasDoGrupo) {
 async function gerarLinkAfiliadoML(linkOriginal) {
     try {
         const urlApiInterna = 'https://www.mercadolivre.com.br/affiliate-program/api/v2/affiliates/createLink'; 
-        const resposta = await axios.post(urlApiInterna, { urls: [linkOriginal], tag: CONFIG.GERAL.TAG_AFILIADO }, {
+        const resposta = await axios.post(urlApiInterna, { urls: [linkOriginal], tag: CONFIG.GERAL.TAG_ML }, {
             headers: {
                 'Content-Type': 'application/json',
                 'Cookie': CONFIG.GERAL.COOKIE_ML, 
@@ -148,4 +148,4 @@ async function gerarLinkAfiliadoML(linkOriginal) {
     }
 }
 
-module.exports = { buscarOfertasML, gerarLinkAfiliadoML };
+module.exports = { buscarOfertas: buscarOfertasML, gerarLinkAfiliadoML};

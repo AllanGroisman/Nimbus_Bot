@@ -3,7 +3,6 @@
 // Importação das dependências e configurações necessárias
 const { CONFIG, setGrupo } = require('./config'); // Variáveis de configuração e função para atualizar o estado dos grupos
 const { salvarNoHistorico } = require('./memoria'); // Função para salvar produtos já enviados e evitar repetição
-const mercadolivre = require('./scrapers/mercadolivre'); // O "raspador" de dados que busca os produtos no ML
 const { esperar, converterParaMinutos } = require('./utils'); // Funções utilitárias (ex: pausa no código, conversão de tempo)
 const { MessageMedia } = require('whatsapp-web.js'); // Biblioteca do WhatsApp para envio de mídias (fotos)
 
@@ -102,25 +101,57 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
 
         console.log(`\n🔍 Iniciando garimpo para ${regrasDoGrupo.NOME} | Turno: ${turnoEncontrado.id} (Buscando ${qtdFaltante} faltantes)`);
         
+        console.log(`\n🔍 Iniciando garimpo para ${regrasDoGrupo.NOME} | Turno: ${turnoEncontrado.id} (Buscando ${qtdFaltante} faltantes)`);
+        
         try {
-            // Opcional/Comentado: Enviar mensagem avisando o grupo que está garimpando
-            //await client.sendMessage(idGrupo, `⏳ Pessoal, garimpando as melhores ofertas...`);
-            
-            // Avisa ao scraper exatamente quantos produtos ele precisa trazer
-            regrasDoGrupo.QTD_ATUAL = qtdFaltante; 
-            
-            // Chama a função externa que efetivamente faz o web scraping no ML
-            const novosProdutos = await mercadolivre.buscarOfertasML(regrasDoGrupo);
+            let novosProdutos = [];
+            let qtdRestante = qtdFaltante;
+            let lojasRestantes = regrasDoGrupo.LOJAS.length;
+
+            // 👇 DIVISÃO JUSTA E DINÂMICA DAS LOJAS 👇
+            for (const loja of regrasDoGrupo.LOJAS) {
+                if (qtdRestante <= 0) break; // Se já encheu as vagas, encerra as buscas
+
+                // Divide a meta restante pelo número de lojas que ainda faltam rodar.
+                // Usamos Math.ceil para arredondar pra cima (ex: 5 vagas / 2 lojas = 3 de meta)
+                let metaPorLoja = Math.ceil(qtdRestante / lojasRestantes);
+
+                console.log(`   🛒 Buscando na loja: ${loja}... (Cota: ${metaPorLoja} produtos)`);
+                try {
+                    const scraper = require(`./scrapers/${loja.toLowerCase()}`);
+                    
+                    regrasDoGrupo.QTD_ATUAL = metaPorLoja; 
+                    
+                    const produtosDaLoja = await scraper.buscarOfertas(regrasDoGrupo);
+
+                    if (produtosDaLoja && Array.isArray(produtosDaLoja)) {
+                        novosProdutos = novosProdutos.concat(produtosDaLoja);
+                        qtdRestante -= produtosDaLoja.length; // Desconta o que achou da meta final
+                    }
+                } catch (erroDeLoja) {
+                    if (erroDeLoja.code === 'MODULE_NOT_FOUND') {
+                        console.log(`   ⚠️ Scraper 'scrapers/${loja.toLowerCase()}.js' ainda não existe. Pulando...`);
+                    } else {
+                        console.log(`   ❌ Erro ao rodar a loja ${loja}: ${erroDeLoja.message}`);
+                    }
+                }
+                lojasRestantes--; // Avisa que uma loja já foi
+            }
+
+            // 👇 A MÁGICA DO EMBARALHAMENTO (Algoritmo Fisher-Yates) 👇
+            for (let i = novosProdutos.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                // Troca a posição dos produtos aleatoriamente no array
+                [novosProdutos[i], novosProdutos[j]] = [novosProdutos[j], novosProdutos[i]]; 
+            }
 
             // 👇 TRAVA DE SEGURANÇA 👇
-            // Valida se o scraper conseguiu retornar um array válido com produtos
-            if (!novosProdutos || !Array.isArray(novosProdutos) || novosProdutos.length === 0) {
-                console.log(`⚠️ O Mercado Livre não retornou produtos válidos para ${regrasDoGrupo.NOME}.`);
-                continue; // Aborta o processamento para este grupo e tenta no próximo ciclo
+            if (novosProdutos.length === 0) {
+                console.log(`⚠️ Nenhuma loja retornou produtos válidos para ${regrasDoGrupo.NOME}.`);
+                continue; 
             }
 
             // 👇 COLOCANDO NA FILA DE ESPERA (Aprovação) 👇
-            // Guarda os produtos encontrados numa fila temporária e salva o status de hoje
             CONFIG.GRUPOS[idGrupo].FILA_AGUARDANDO_APROVACAO = novosProdutos;
             setGrupo(idGrupo, 'TURNO_SALVO', turnoEncontrado.id);
             setGrupo(idGrupo, 'DATA_SALVA', dataHoje);
@@ -128,17 +159,17 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
             // Monta a mensagem que será enviada para o administrador aprovar os produtos
             let textoAprovacao = `🚨 *APROVAÇÃO PENDENTE - ${regrasDoGrupo.NOME}* 🚨\nTurno: ${turnoEncontrado.id}\n\n`;
             novosProdutos.forEach((prod, idx) => {
-                textoAprovacao += `*${idx + 1}.* ${prod.titulo.substring(0, 35)}... (R$ ${prod.preco})\n`;
+                // Adicionamos a tag de onde o produto veio para você saber no menu de aprovação
+                const origem = prod.linkOriginal.includes('amazon') ? '🛒 AMZ' : '🛒 ML';
+                textoAprovacao += `*${idx + 1}.* [${origem}] ${prod.titulo.substring(0, 30)}... (R$ ${prod.preco})\n`;
             });
             textoAprovacao += `\n✅ Aprovar TODOS:\n*!aprovar ${regrasDoGrupo.NOME}*\n\n✅ Aprovar alguns:\n*!aprovar ${regrasDoGrupo.NOME} 1,3,4*\n\n❌ Rejeitar e buscar novos:\n*!rejeitar ${regrasDoGrupo.NOME}*`;
 
-            // Puxa o ID do grupo dos Administradores nas configurações gerais
             const idGrupoAdmin = CONFIG.GERAL.ID_GRUPO_ADMIN; 
             
-            // Envia o menu de aprovação para o admin no WhatsApp
             await client.sendMessage(idGrupoAdmin, textoAprovacao);
             console.log(`\n⏸️ Menu de aprovação enviado para o Grupo Admin. Aguardando comandos...`);
-            console.log(`✅ ${novosProdutos.length} produtos enviados para a fila de espera. O Garimpeiro vai aguardar a sua ordem.\n`);
+            console.log(`✅ ${novosProdutos.length} produtos embaralhados enviados para a fila de espera.\n`);
 
         } catch (erro) {
             console.log("❌ Erro fatal no Garimpeiro:", erro);
@@ -210,9 +241,11 @@ function iniciarDespachante(client) {
                     
                     const emoji = isRelampago ? '⚡ *OFERTA RELÂMPAGO* ⚡' : '🔥 *OFERTA ENCONTRADA* 🔥';
                     
-                    // Monta o texto final da mensagem para o WhatsApp
-                    const textoMensagem = `${emoji}\n\n📦 *Produto:* ${prod.titulo}\n⭐ *Nota:* ${prod.nota} (${prod.vendas}+ vendidos)\n📉 *Desconto:* ${prod.desconto}% OFF\n${linhaPreco}\n\n🛒 *Compre aqui:* ${prod.linkComissionado}`;
+                    // Cria a tag de vendas apenas se o número for maior que zero
+                    const textoVendas = prod.vendas > 0 ? ` (${prod.vendas}+ vendidos)` : '';
 
+                    // Monta o texto final da mensagem para o WhatsApp
+                    const textoMensagem = `${emoji}\n\n📦 *Produto:* ${prod.titulo}\n⭐ *Nota:* ${prod.nota}${textoVendas}\n📉 *Desconto:* ${prod.desconto}% OFF\n${linhaPreco}\n\n🛒 *Compre aqui:* ${prod.linkComissionado}`;
                     try {
                         const chat = await client.getChatById(idGrupo);
                         // Simula o bot "digitando..." por 2 segundos para parecer mais humano

@@ -1,163 +1,158 @@
-// --- CONFIGURAÇÕES ---
+// scrapers/amazon.js
+const { chromium } = require('playwright');
+const { CONFIG } = require('../config');
+const { foiEnviadoRecentemente } = require('../memoria');
 
-// Sua tag de associado Amazon
+async function buscarOfertas(regrasDoGrupo) {
+    console.log(`\n==================================================`);
+    console.log(`🛒 INICIANDO BUSCA NA AMAZON: ${regrasDoGrupo.NOME}`);
+    console.log(`==================================================`);
+    
+    const produtos = [];
+    const TAG_AFILIADO = CONFIG.GERAL.TAG_AMAZON || "pedroguterres-20";
 
-const TAG_AFILIADO = "pedroguterres-20";
-
-
-
-async function extrairPaginaDeOfertas() {
-
-    console.log("Iniciando acesso à página principal de Ofertas...\n");
-
-   
-
-    // headless: false para ver o navegador abrindo.
-
-    // Mude para true quando for deixar o bot rodando sozinho no servidor.
-
-    const browser = await chromium.launch({ headless: false });
-
+    const browser = await chromium.launch({ headless: true }); 
     const page = await browser.newPage();
-
     const url = "https://www.amazon.com.br/deals?ref_=nav_cs_gb";
-
-   
-
-    console.log(`Acessando:\n${url}\n`);
-
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-
-   
-
+    
     try {
-
-        console.log("Aguardando carregar a interface e procurando o filtro 'Bebês'...");
-
-       
-
-        // Busca a <label> inteira que contém o input com o ID exato da categoria Bebês
-
+        console.log(`   🌐 Acessando a página de Ofertas da Amazon...`);
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        
         const filtroBebe = page.locator('label').filter({ has: page.locator('input[value="17242604011"]') });
-
-       
-
-        // Espera o elemento estar pronto na tela
-
-        await filtroBebe.waitFor({ state: 'visible', timeout: 30000 });
-
-       
-
-        // Clica nele forçando a ação para evitar bloqueios de sobreposição
-
-        await filtroBebe.click({ force: true });
-
-       
-
-        console.log("Filtro 'Bebês' clicado! Aguardando o grid de produtos atualizar...\n");
-
-       
-
-        // Pausa para dar tempo da Amazon carregar os produtos via AJAX
-
+        try {
+            await filtroBebe.waitFor({ state: 'visible', timeout: 15000 });
+            await filtroBebe.click({ force: true });
+            console.log("   ⏳ Filtro clicado. Aguardando carregar os produtos...");
+        } catch (e) {
+            console.log("   ⚠️ Aviso: Filtro não encontrado, prosseguindo com as ofertas gerais.");
+        }
+        
         await page.waitForTimeout(5000);
 
-
-
-        console.log(`Extraindo as ofertas e gerando links para a tag: ${TAG_AFILIADO}...\n`);
-
-        console.log("-".repeat(80));
-
-       
-
-        // Captura todos os links da página
-
-        const linksNaPagina = await page.$$('a');
-
-        let ofertasImpressas = 0;
-
-        const linksJaImpressos = new Set();
-
-
-
-        for (const link of linksNaPagina) {
-
-            const href = await link.getAttribute('href');
-
-           
-
-            // Verifica se é link de produto ou combo de ofertas
-
-            if (href && (href.includes('/dp/') || href.includes('/deal/'))) {
-
-                const linkCompleto = href.startsWith('http') ? href : `https://www.amazon.com.br${href}`;
-
-               
-
-                // Pega apenas a URL limpa, sem parâmetros de rastreio antigos
-
-                const linkLimpo = linkCompleto.split('?')[0];
-
-               
-
-                // 🚀 Adiciona a sua tag de afiliado
-
-                const linkComissionado = `${linkLimpo}?tag=${TAG_AFILIADO}`;
-
-               
-
-                const titulo = await link.innerText();
-
-               
-
-                // Filtra links inválidos e evita duplicatas usando o linkLimpo como base
-
-                if (titulo.trim().length > 5 && !linksJaImpressos.has(linkLimpo)) {
-
-                    console.log(`Produto: ${titulo.replace(/\n/g, ' ').trim()}`);
-
-                    console.log(`Link:    ${linkComissionado}`);
-
-                    console.log("-".repeat(80));
-
-                   
-
-                    linksJaImpressos.add(linkLimpo);
-
-                    ofertasImpressas++;
-
-                }
-
-            }
-
+        console.log("   🔄 Rolando a página para forçar a Amazon a carregar mais ofertas...");
+        for (let i = 0; i < 6; i++) { // Rola a página 6 vezes para baixo
+            await page.evaluate(() => window.scrollBy(0, 1500));
+            await page.waitForTimeout(1500); // Dá 1.5 segundos pra Amazon processar cada rolagem
         }
 
-        console.log(`\nTotal de ofertas únicas encontradas: ${ofertasImpressas}`);
+        const linksNaPagina = await page.$$('a');
+        const linksJaAnalisados = new Set();
 
+        for (const link of linksNaPagina) {
+            if (produtos.length >= regrasDoGrupo.QTD_ATUAL) break; 
 
+            const href = await link.getAttribute('href');
+            
+            if (href && (href.includes('/dp/') || href.includes('/deal/'))) {
+                const linkCompleto = href.startsWith('http') ? href : `https://www.amazon.com.br${href}`;
+                const linkLimpo = linkCompleto.split('?')[0];
+                
+                if (linksJaAnalisados.has(linkLimpo)) continue;
 
+                // 👇 INJEÇÃO NO NAVEGADOR: PESCANDO OS DADOS ENXUTOS 👇
+                const detalhes = await link.evaluate(el => {
+                    let alt = '';
+                    let precos = [];
+                    let descontoTexto = '';
+                    let notaTexto = '';
+
+                    let parent = el.parentElement;
+                    for(let i=0; i<5; i++) {
+                        if(!parent) break;
+                        
+                        // Busca apenas o título (alt da imagem)
+                        if (!alt) {
+                            const imgEl = parent.querySelector('img');
+                            if(imgEl) alt = imgEl.getAttribute('alt') || '';
+                        }
+
+                        // Busca o preço escondido
+                        if (precos.length === 0) {
+                            const priceEls = parent.querySelectorAll('.a-price .a-offscreen');
+                            if (priceEls.length > 0) {
+                                precos = Array.from(priceEls).map(p => p.innerText.trim());
+                            }
+                        }
+                        
+                        // Busca o desconto
+                        if (!descontoTexto) {
+                            const match = parent.innerText.match(/(\d{1,2})%\s?(off|de desconto)/i);
+                            if (match) descontoTexto = match[1];
+                        }
+
+                        // Busca as estrelas
+                        if (!notaTexto) {
+                            const ratingEl = parent.querySelector('.a-icon-alt');
+                            if (ratingEl) notaTexto = ratingEl.innerText;
+                        }
+
+                        if (alt && precos.length > 0) break;
+                        parent = parent.parentElement;
+                    }
+                    
+                    return { alt, precos, descontoTexto, notaTexto };
+                });
+
+                let titulo = detalhes.alt;
+                
+                if (titulo && titulo.length > 5) {
+                    linksJaAnalisados.add(linkLimpo);
+
+                    if (foiEnviadoRecentemente(linkLimpo, regrasDoGrupo.DIAS_PARA_REPETIR_PRODUTO)) continue;
+
+                    // 👇 PREÇO FORMATADO SEM CENTAVOS 👇
+                    let precoFormatado = "Ver no site";
+                    let precoAntigoFormatado = "";
+                    
+                    if (detalhes.precos.length > 0) {
+                        const precosUnicos = [...new Set(detalhes.precos)]; 
+                        
+                        // Extrai tudo, exceto letras
+                        let precoSujo = precosUnicos[0].replace(/[^\d,.]/g, '').trim(); 
+                        if(precoSujo) precoFormatado = precoSujo.split(',')[0]; 
+
+                        if (precosUnicos.length > 1) {
+                            let precoAntigoSujo = precosUnicos[precosUnicos.length - 1].replace(/[^\d,.]/g, '').trim();
+                            if(precoAntigoSujo) precoAntigoFormatado = precoAntigoSujo.split(',')[0];
+                        }
+                    }
+
+                    let notaNumero = 4.5;
+                    const matchNota = detalhes.notaTexto.match(/(\d+,\d+)/);
+                    if (matchNota) notaNumero = parseFloat(matchNota[1].replace(',', '.'));
+
+                    const tituloMinusculo = titulo.toLowerCase();
+                    const passaPalavraChave = !regrasDoGrupo.PALAVRAS_CHAVE || regrasDoGrupo.PALAVRAS_CHAVE.length === 0 || regrasDoGrupo.PALAVRAS_CHAVE.some(palavra => tituloMinusculo.includes(palavra.toLowerCase()));
+
+                    if (passaPalavraChave) {
+                        const linkComissionado = `${linkLimpo}?tag=${TAG_AFILIADO}`;
+
+                        produtos.push({ 
+                            titulo: titulo, 
+                            preco: precoFormatado, 
+                            precoAntigo: precoAntigoFormatado, 
+                            linkOriginal: linkCompleto, 
+                            linkLimpo: linkLimpo, 
+                            linkComissionado: linkComissionado, 
+                            desconto: parseInt(detalhes.descontoTexto) || 0, 
+                            nota: notaNumero, 
+                            vendas: 0, // 👈 Removido
+                            imagem: "" // 👈 Removido
+                        });
+                        
+                        console.log(`   ⭐ APROVADO: ${titulo.substring(0,30)}... | R$ ${precoFormatado}`);
+                    }
+                }
+            }
+        }
     } catch (error) {
-
-        console.log("\n❌ Erro durante a extração.");
-
-        console.log("Detalhe do erro:", error.message);
-
-       
-
-        await page.screenshot({ path: 'debug_erro_timeout.png', fullPage: true });
-
-        console.log("📸 Um print da tela no momento do erro foi salvo como 'debug_erro_timeout.png'");
-
+        console.log("\n❌ Erro durante a extração da Amazon:", error.message);
+    } finally {
+        await browser.close(); 
     }
-
-   
-
-    await browser.close();
-
-    console.log("Extração finalizada com sucesso.");
-
+    
+    return produtos; 
 }
 
-// --- Execução do Script ---
-
-extrairPaginaDeOfertas();
+module.exports = { buscarOfertas };
