@@ -14,3 +14,8 @@ andes-card poly-card poly-card--grid-card poly-card--xlarge andes-card--flat and
 
 Comando pra entrar no SSH do servidor:
 ssh -i ssh-key.key ubuntu@204.216.151.84
+
+
+
+120363407976363861@g.us grupo
+120363427180614553@g.us adm

@@ -1,14 +1,22 @@
 // scrapers/mercadolivre.js
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { CONFIG } = require('../config');
+const { CONFIG, MAPEAMENTO_CATEGORIAS } = require('../config');
 const { foiEnviadoRecentemente } = require('../memoria');
+
+// 👇 CHAVE LIGA/DESLIGA DA FOTO 👇
+const ENVIAR_FOTO = false; // Mude para false se quiser enviar apenas texto
 
 const esperar = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function buscarOfertasML(regrasDoGrupo) {
+    
+    // 👇 Puxando a rota do nosso novo dicionário
+    const dicionarioDaCategoria = MAPEAMENTO_CATEGORIAS[regrasDoGrupo.CATEGORIA] || MAPEAMENTO_CATEGORIAS['BEBE'];
+    const ROTA_DA_VEZ = regrasDoGrupo.IS_RELAMPAGO ? dicionarioDaCategoria.ML_RELAMPAGO : dicionarioDaCategoria.ML_PADRAO;
+
     console.log(`\n==================================================`);
-    console.log(`🔍 INICIANDO BUSCA NA ROTA: ${regrasDoGrupo.ROTA_ATUAL}`);
+    console.log(`🔍 INICIANDO BUSCA ML: ${regrasDoGrupo.NOME} | Categoria: ${dicionarioDaCategoria.NOME}`);
     console.log(`==================================================`);
     
     const produtos = [];
@@ -19,7 +27,8 @@ async function buscarOfertasML(regrasDoGrupo) {
         console.log(`\n📄 Lendo a página ${paginaAtual}... (Meta: ${produtos.length}/${regrasDoGrupo.QTD_ATUAL} produtos)`);
         
         try {
-            let urlDaBusca = `https://www.mercadolivre.com.br/ofertas${regrasDoGrupo.ROTA_ATUAL}`;
+            // 👇 A URL agora usa a rota dinâmica
+            let urlDaBusca = `https://www.mercadolivre.com.br/ofertas${ROTA_DA_VEZ}`;
             const separador = urlDaBusca.includes('?') ? '&' : '?';
             urlDaBusca += `${separador}page=${paginaAtual}&_t=${new Date().getTime()}`;
 
@@ -51,12 +60,15 @@ async function buscarOfertasML(regrasDoGrupo) {
                     const linkOriginal = $(elemento).find('a').attr('href');
                     let titulo = $(elemento).find('[class*="poly-component__title"], .ui-search-item__title, h2').first().text().trim();
 
-                    let imagem = $(elemento).find('img').first().attr('data-src') || $(elemento).find('img').first().attr('src') || '';
+                    // Verifica a chave antes de extrair a imagem
+                    let imagem = '';
+                    if (ENVIAR_FOTO) {
+                        imagem = $(elemento).find('img').first().attr('data-src') || $(elemento).find('img').first().attr('src') || '';
+                    }
                     
                     if (titulo && linkOriginal) {
                         const linkLimpo = linkOriginal.split('?')[0];
                         
-                        // 🐛 CORRIGIDO: Era 'return true', agora é 'continue'
                         if (foiEnviadoRecentemente(linkLimpo, regrasDoGrupo.DIAS_PARA_REPETIR_PRODUTO)) {
                             console.log(`   ♻️ IGNORADO: '${titulo.substring(0, 20)}...' (Já enviado hoje)`);
                             continue; 
@@ -102,7 +114,7 @@ async function buscarOfertasML(regrasDoGrupo) {
                     }
                 } catch (erroNoCartao) {
                     console.log(`   ⚠️ PULANDO PRODUTO BIZARRO: Erro ao ler a estrutura do HTML.`);
-                    continue; // Se der erro em um, pula pro próximo!
+                    continue; 
                 }
                 // 👆 FIM DO COLETE 👆
             }

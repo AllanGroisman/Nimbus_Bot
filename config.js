@@ -2,6 +2,41 @@
 const fs = require('fs');
 const ARQUIVO_CONFIG = './config.json';
 
+// config.js (Trechos a serem alterados)
+
+const MAPEAMENTO_CATEGORIAS = {
+    'BEBE': { //BOMBANDO
+        NOME: 'Bebês',
+        ML_PADRAO: '?category=MLB1384',
+        ML_RELAMPAGO: '?category=MLB1384&promotion_type=lightning',
+        AMAZON_LABEL: 'Bebês' 
+    },
+    'GAMER': { //ERRO
+        NOME: 'Games e PC Gamer',
+        ML_PADRAO: '?category=MLB1144',
+        ML_RELAMPAGO: '?category=MLB1144&promotion_type=lightning',
+        AMAZON_LABEL: 'Games e Consoles' 
+    },
+    'INFORMATICA': { //BOMBANDO
+        NOME: 'Informática',
+        ML_PADRAO: '?category=MLB1648',
+        ML_RELAMPAGO: '?category=MLB1648&promotion_type=lightning',
+        AMAZON_LABEL: 'Computadores e Informática' 
+    },
+    'ESPORTE': { //BOMBANDO
+        NOME: 'Esportes e Fitness',
+        ML_PADRAO: '?category=MLB1276',
+        ML_RELAMPAGO: '?category=MLB1276&promotion_type=lightning',
+        AMAZON_LABEL: 'Esporte, Aventura e Lazer' 
+    },
+    'CASA': { //BOMBANDO
+        NOME: 'Casa, Móveis e Decoração',
+        ML_PADRAO: '?category=MLB1574',
+        ML_RELAMPAGO: '?category=MLB1574&promotion_type=lightning',
+        AMAZON_LABEL: 'Casa'
+    }
+};
+
 const CONFIG_PADRAO_GRUPO = {
     NOME: 'SEM_NOME',
     LOJAS: ['MERCADOLIVRE'],
@@ -12,15 +47,13 @@ const CONFIG_PADRAO_GRUPO = {
     DIAS_PARA_REPETIR_PRODUTO: 2,
 
     // 📦 REGRAS DO MODO PADRÃO
-    ROTA_PADRAO: '?category=MLB1384',
-    DESCONTO_MINIMO_PADRAO: 10, 
-    VENDAS_MINIMAS_PADRAO: 100, 
+    DESCONTO_MINIMO_PADRAO: 0, 
+    VENDAS_MINIMAS_PADRAO: 0, 
     NOTA_MINIMA_PADRAO: 4.5,    
 
     // ⚡ REGRAS DO MODO RELÂMPAGO
-    ROTA_RELAMPAGO: '?category=MLB1384&promotion_type=lightning',
-    DESCONTO_MINIMO_RELAMPAGO: 15, 
-    VENDAS_MINIMAS_RELAMPAGO: 50, // Relâmpago pode ter menos vendas por ser oferta nova
+    DESCONTO_MINIMO_RELAMPAGO: 0, 
+    VENDAS_MINIMAS_RELAMPAGO: 0, // Relâmpago pode ter menos vendas por ser oferta nova
     NOTA_MINIMA_RELAMPAGO: 4.5,
 
     TURNOS: [
@@ -34,7 +67,8 @@ const CONFIG_PADRAO_GRUPO = {
 
     FILA_DE_PRODUTOS: [],
     TURNO_SALVO: '',
-    DATA_SALVA: ''
+    DATA_SALVA: '',
+    QTD_ATUAL: 0
 };
 
 const CONFIG_PADRAO = {
@@ -82,12 +116,11 @@ function addGrupo(idGrupo, nomeGrupo) {
 }
 
 function setGrupo(idGrupo, chave, valor) {
-    if (CONFIG.GRUPOS[idGrupo] && CONFIG.GRUPOS[idGrupo][chave] !== undefined) {
+    // Agora ele verifica apenas se o grupo existe. Se a variável for nova, ele cria na hora!
+    if (CONFIG.GRUPOS[idGrupo]) {
         CONFIG.GRUPOS[idGrupo][chave] = valor;
         salvarConfig();
-        return true;
     }
-    return false;
 }
 
 function encontrarIdPorNome(nome) {
@@ -100,4 +133,4 @@ function encontrarIdPorNome(nome) {
 
 carregarConfiguracoes();
 
-module.exports = { CONFIG, setGeral, addGrupo, setGrupo, encontrarIdPorNome };
+module.exports = { CONFIG, setGeral, addGrupo, setGrupo, encontrarIdPorNome, MAPEAMENTO_CATEGORIAS };

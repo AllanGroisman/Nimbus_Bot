@@ -72,9 +72,9 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
             }
         }
 
-        // Define os parâmetros de busca baseados no tipo do turno (Relâmpago ou Padrão)
+        // 👇 MUDE PARA ISSO: 👇
         const isRelampago = turnoEncontrado.modo === 'RELAMPAGO';
-        regrasDoGrupo.ROTA_ATUAL = isRelampago ? regrasDoGrupo.ROTA_RELAMPAGO : regrasDoGrupo.ROTA_PADRAO;
+        regrasDoGrupo.IS_RELAMPAGO = isRelampago; // 👈 O motor passa apenas isso
         regrasDoGrupo.DESCONTO_ATUAL = isRelampago ? regrasDoGrupo.DESCONTO_MINIMO_RELAMPAGO : regrasDoGrupo.DESCONTO_MINIMO_PADRAO;
         regrasDoGrupo.VENDAS_ATUAIS = isRelampago ? regrasDoGrupo.VENDAS_MINIMAS_RELAMPAGO : regrasDoGrupo.VENDAS_MINIMAS_PADRAO;
         regrasDoGrupo.NOTA_ATUAL = isRelampago ? regrasDoGrupo.NOTA_MINIMA_RELAMPAGO : regrasDoGrupo.NOTA_MINIMA_PADRAO;

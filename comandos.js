@@ -4,22 +4,6 @@ const fs = require('fs');
 const { rodarRoboDeOfertas, obterStatusRobo } = require('./motor');
 const { salvarNoHistorico } = require('./memoria');
 
-// O "Dicionário" de Categorias do Mercado Livre
-const CATEGORIAS_ML = {
-    'BEBE': 'MLB1384',
-    'CELULAR': 'MLB1051',
-    'SMARTPHONE': 'MLB1051',
-    'INFORMATICA': 'MLB1648',
-    'CASA': 'MLB1574',
-    'TV': 'MLB1000',
-    'GAMER': 'MLB1144',
-    'GAMES': 'MLB1144',
-    'ELETRO': 'MLB5726',
-    'BELEZA': 'MLB1246',
-    'MERCADO': 'MLB1403',
-    'MODA': 'MLB1430',
-    'ESPORTES': 'MLB1276'
-};
 
 function carregarComandos(client) {
     client.on('message_create', async msg => {
@@ -135,41 +119,83 @@ function carregarComandos(client) {
             await msg.reply(texto);
         }
 
+       // ==========================================
+        // COMANDO: !TEMPLATE
+        // ==========================================
         if (msg.body.startsWith('!template ')) {
-            const nome = msg.body.replace('!template ', '').trim();
-            const idGrupo = encontrarIdPorNome(nome);
-            if (!idGrupo) return;
-            let texto = `!update ${nome}\n`;
-            for (const [k, v] of Object.entries(CONFIG.GRUPOS[idGrupo])) {
-                if (['NOME', 'FILA_DE_PRODUTOS', 'TURNOS', 'TURNO_SALVO', 'DATA_SALVA', 'ROTA_ATUAL', 'QTD_ATUAL'].includes(k)) continue;
-                texto += `${k}=${Array.isArray(v) ? v.join(', ') : v}\n`;
-            }
-            await msg.reply(`Copie, altere e devolva:\n\n${texto}`);
+            const nomeGrupo = msg.body.replace('!template ', '').trim().toUpperCase();
+            const idGrupo = encontrarIdPorNome(nomeGrupo);
+            
+            if (!idGrupo) return msg.reply(`❌ Grupo não encontrado.`);
+
+            const regras = CONFIG.GRUPOS[idGrupo];
+            let texto = `Copie a mensagem abaixo, altere os valores após o sinal de igual (=) e envie de volta para atualizar:\n\n`;
+            
+            // Monta o gabarito limpo com as novas variáveis do sistema
+            texto += `!update ${regras.NOME}\n`;
+            texto += `LOJAS = ${regras.LOJAS ? regras.LOJAS.join(', ') : 'MERCADOLIVRE, AMAZON'}\n`;
+            texto += `CATEGORIA = ${regras.CATEGORIA || 'BEBE'}\n`;
+            texto += `LIMITE_PAGINAS_BUSCA = ${regras.LIMITE_PAGINAS_BUSCA}\n`;
+            texto += `DIAS_PARA_REPETIR_PRODUTO = ${regras.DIAS_PARA_REPETIR_PRODUTO || 2}\n`;
+            texto += `PALAVRAS_CHAVE = ${regras.PALAVRAS_CHAVE ? regras.PALAVRAS_CHAVE.join(', ') : ''}\n`;
+            texto += `DESCONTO_MINIMO_PADRAO = ${regras.DESCONTO_MINIMO_PADRAO}\n`;
+            texto += `VENDAS_MINIMAS_PADRAO = ${regras.VENDAS_MINIMAS_PADRAO}\n`;
+            texto += `NOTA_MINIMA_PADRAO = ${regras.NOTA_MINIMA_PADRAO}\n`;
+            texto += `DESCONTO_MINIMO_RELAMPAGO = ${regras.DESCONTO_MINIMO_RELAMPAGO}\n`;
+            texto += `VENDAS_MINIMAS_RELAMPAGO = ${regras.VENDAS_MINIMAS_RELAMPAGO}\n`;
+            texto += `NOTA_MINIMA_RELAMPAGO = ${regras.NOTA_MINIMA_RELAMPAGO}`;
+
+            msg.reply(texto);
         }
 
+        // ==========================================
+        // COMANDO: !UPDATE
+        // ==========================================
         if (msg.body.startsWith('!update ')) {
             const linhas = msg.body.split('\n');
-            const nome = linhas[0].split(' ')[1];
-            const idGrupo = encontrarIdPorNome(nome);
-            if (!idGrupo) return;
+            const cabecalho = linhas.shift(); // Remove a primeira linha (!update NOME_DO_GRUPO)
+            const nomeGrupo = cabecalho.replace('!update ', '').trim().toUpperCase();
+            const idGrupo = encontrarIdPorNome(nomeGrupo);
+            
+            if (!idGrupo) return msg.reply(`❌ Grupo não encontrado.`);
+
             let atualizados = 0;
-            for (let i = 1; i < linhas.length; i++) {
-                const linha = linhas[i].trim();
-                if (!linha || !linha.includes('=')) continue;
-                const sep = linha.indexOf('=');
-                const chave = linha.substring(0, sep).trim().toUpperCase();
-                const valorBruto = linha.substring(sep + 1).trim();
-                if (CONFIG.GRUPOS[idGrupo][chave] !== undefined) {
-                    let valorFinal = valorBruto;
-                    const tipoAtual = typeof CONFIG.GRUPOS[idGrupo][chave];
-                    if (Array.isArray(CONFIG.GRUPOS[idGrupo][chave])) valorFinal = valorBruto.split(',').filter(x => x.trim()).map(x => x.trim());
-                    else if (tipoAtual === 'number') valorFinal = Number(valorBruto) || 0;
-                    else if (tipoAtual === 'boolean') valorFinal = valorBruto.toLowerCase() === 'true';
-                    setGrupo(idGrupo, chave, valorFinal);
-                    atualizados++;
+            linhas.forEach(linha => {
+                if (linha.includes('=')) {
+                    let [chave, valor] = linha.split('=');
+                    chave = chave.trim().toUpperCase();
+                    valor = valor.trim(); // Mantém o formato original primeiro
+
+                    // 1. Tratamento para listas (Arrays)
+                    if (chave === 'LOJAS' || chave === 'PALAVRAS_CHAVE') {
+                        // Transforma a string "AMAZON, MERCADOLIVRE" em um array bonitinho
+                        const arrayFormatado = valor.split(',').map(item => item.trim().toUpperCase()).filter(item => item !== '');
+                        setGrupo(idGrupo, chave, arrayFormatado);
+                        atualizados++;
+                    } 
+                    // 2. Tratamento para a Categoria (Garante que fique em Maiúsculo para achar no dicionário)
+                    else if (chave === 'CATEGORIA') {
+                        setGrupo(idGrupo, chave, valor.toUpperCase());
+                        atualizados++;
+                    } 
+                    // 3. Tratamento para Números
+                    else if (!isNaN(valor) && valor !== '') {
+                        setGrupo(idGrupo, chave, Number(valor));
+                        atualizados++;
+                    } 
+                    // 4. Textos em Geral
+                    else if (valor !== '') {
+                        setGrupo(idGrupo, chave, valor);
+                        atualizados++;
+                    }
                 }
+            });
+
+            if (atualizados > 0) {
+                msg.reply(`✅ Grupo *${nomeGrupo}* atualizado com sucesso! (${atualizados} regras alteradas).`);
+            } else {
+                msg.reply(`⚠️ Nenhuma regra foi atualizada. Verifique se você usou o formato CHAVE = VALOR.`);
             }
-            await msg.reply(`✅ ${atualizados} configurações alteradas.`);
         }
 
         if (msg.body.startsWith('!turnos ')) {
@@ -329,6 +355,24 @@ function carregarComandos(client) {
                 msg.reply(`✅ Todos os *${produtosAprovados.length}* produtos foram aprovados e agendados com sucesso!`);
             }
         }
+
+        // ==========================================
+        // COMANDO: !ROBO [ON/OFF]
+        // ==========================================
+        if (msg.body.startsWith('!robo ')) {
+            const acao = msg.body.replace('!robo ', '').trim().toLowerCase();
+            
+            if (acao === 'on') {
+                setGeral('PILOTO_AUTOMATICO_LIGADO', true);
+                msg.reply('🤖 **PILOTO AUTOMÁTICO LIGADO!**\nAgora vou procurar e enviar ofertas sozinho conforme os turnos.');
+            } else if (acao === 'off') {
+                setGeral('PILOTO_AUTOMATICO_LIGADO', false);
+                msg.reply('😴 **PILOTO AUTOMÁTICO DESLIGADO.**\nNão farei mais envios automáticos até que me ligues novamente.');
+            } else {
+                msg.reply('⚠️ Usa `!robo on` para ligar ou `!robo off` para desligar.');
+            }
+        }
+
 
         // ==========================================
         // COMANDO: !REJEITAR
