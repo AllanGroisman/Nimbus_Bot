@@ -53,7 +53,7 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
         // Verifica se este turno específico já foi rodado/processado hoje
         const ehMesmoTurno = regrasDoGrupo.TURNO_SALVO === turnoEncontrado.id && regrasDoGrupo.DATA_SALVA === dataHoje;
 
-        // 👇 NOVA LÓGICA DE ESPERA 👇
+        // 👇 LÓGICA DE ESPERA 👇
         // Se o robô já operou neste turno hoje, ele verifica o status das filas
         if (ehMesmoTurno) {
             // Se já tem produto esperando aprovação do admin, ele não busca mais nada
@@ -72,9 +72,8 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
             }
         }
 
-        // 👇 MUDE PARA ISSO: 👇
         const isRelampago = turnoEncontrado.modo === 'RELAMPAGO';
-        regrasDoGrupo.IS_RELAMPAGO = isRelampago; // 👈 O motor passa apenas isso
+        regrasDoGrupo.IS_RELAMPAGO = isRelampago; 
         regrasDoGrupo.DESCONTO_ATUAL = isRelampago ? regrasDoGrupo.DESCONTO_MINIMO_RELAMPAGO : regrasDoGrupo.DESCONTO_MINIMO_PADRAO;
         regrasDoGrupo.VENDAS_ATUAIS = isRelampago ? regrasDoGrupo.VENDAS_MINIMAS_RELAMPAGO : regrasDoGrupo.VENDAS_MINIMAS_PADRAO;
         regrasDoGrupo.NOTA_ATUAL = isRelampago ? regrasDoGrupo.NOTA_MINIMA_RELAMPAGO : regrasDoGrupo.NOTA_MINIMA_PADRAO;
@@ -85,10 +84,9 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
         const minutosTotaisDoTurno = fimMin - inicioMin;
         
         // Calcula QUANTOS produtos ele precisa buscar no total para preencher o turno
-        // Ex: Turno de 60 mins, intervalo de 10 mins = 6 produtos
         const qtdTotalDoTurno = Math.max(1, Math.floor(minutosTotaisDoTurno / turnoEncontrado.intervaloMin));
         
-        // 👇 A MATEMÁTICA NOVA: Verifica quantos já estão na fila oficial para buscar só a diferença 👇
+        // Verifica quantos já estão na fila oficial para buscar só a diferença
         const qtdFaltante = qtdTotalDoTurno - regrasDoGrupo.FILA_DE_PRODUTOS.length;
 
         // Se já tem produto suficiente para o turno, ele salva que o turno foi concluído e pula
@@ -98,8 +96,6 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
             CONFIG.GRUPOS[idGrupo].DATA_SALVA = dataHoje;
             continue; 
         }
-
-        console.log(`\n🔍 Iniciando garimpo para ${regrasDoGrupo.NOME} | Turno: ${turnoEncontrado.id} (Buscando ${qtdFaltante} faltantes)`);
         
         console.log(`\n🔍 Iniciando garimpo para ${regrasDoGrupo.NOME} | Turno: ${turnoEncontrado.id} (Buscando ${qtdFaltante} faltantes)`);
         
@@ -113,7 +109,6 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
                 if (qtdRestante <= 0) break; // Se já encheu as vagas, encerra as buscas
 
                 // Divide a meta restante pelo número de lojas que ainda faltam rodar.
-                // Usamos Math.ceil para arredondar pra cima (ex: 5 vagas / 2 lojas = 3 de meta)
                 let metaPorLoja = Math.ceil(qtdRestante / lojasRestantes);
 
                 console.log(`   🛒 Buscando na loja: ${loja}... (Cota: ${metaPorLoja} produtos)`);
@@ -151,25 +146,57 @@ async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
                 continue; 
             }
 
-            // 👇 COLOCANDO NA FILA DE ESPERA (Aprovação) 👇
-            CONFIG.GRUPOS[idGrupo].FILA_AGUARDANDO_APROVACAO = novosProdutos;
-            setGrupo(idGrupo, 'TURNO_SALVO', turnoEncontrado.id);
-            setGrupo(idGrupo, 'DATA_SALVA', dataHoje);
+            // 👇 COLOCANDO NA FILA (Auto-Aprovação ou Espera) 👇
+            if (CONFIG.GERAL.AUTO_APROVAR_LIGADO) {
+                // APROVAÇÃO AUTOMÁTICA (Imita a matemática do comando !aprovar)
+                const intervaloBaseMin = turnoEncontrado ? turnoEncontrado.intervaloMin : 20;
+                let filaExistente = regrasDoGrupo.FILA_DE_PRODUTOS || [];
+                let tempoAcumuladoMS = Date.now();
 
-            // Monta a mensagem que será enviada para o administrador aprovar os produtos
-            let textoAprovacao = `🚨 *APROVAÇÃO PENDENTE - ${regrasDoGrupo.NOME}* 🚨\nTurno: ${turnoEncontrado.id}\n\n`;
-            novosProdutos.forEach((prod, idx) => {
-                // Adicionamos a tag de onde o produto veio para você saber no menu de aprovação
-                const origem = prod.linkOriginal.includes('amazon') ? '🛒 AMZ' : '🛒 ML';
-                textoAprovacao += `*${idx + 1}.* [${origem}] ${prod.titulo.substring(0, 30)}... (R$ ${prod.preco})\n`;
-            });
-            textoAprovacao += `\n✅ Aprovar TODOS:\n*!aprovar ${regrasDoGrupo.NOME}*\n\n✅ Aprovar alguns:\n*!aprovar ${regrasDoGrupo.NOME} 1,3,4*\n\n❌ Rejeitar e buscar novos:\n*!rejeitar ${regrasDoGrupo.NOME}*`;
+                if (filaExistente.length > 0) {
+                    tempoAcumuladoMS = filaExistente[filaExistente.length - 1].horarioEnvio + Math.floor(intervaloBaseMin * 60 * 1000);
+                }
 
-            const idGrupoAdmin = CONFIG.GERAL.ID_GRUPO_ADMIN; 
-            
-            await client.sendMessage(idGrupoAdmin, textoAprovacao);
-            console.log(`\n⏸️ Menu de aprovação enviado para o Grupo Admin. Aguardando comandos...`);
-            console.log(`✅ ${novosProdutos.length} produtos embaralhados enviados para a fila de espera.\n`);
+                const novosAgendados = novosProdutos.map((prod, index) => {
+                    if (index === 0 && filaExistente.length === 0) {
+                        return { produto: prod, horarioEnvio: tempoAcumuladoMS }; // 1º sai na hora
+                    }
+                    // Cria o Jitter (Variação Humana)
+                    const variacao = (Math.random() * 0.6) - 0.3; 
+                    const intervaloComRuidoMin = intervaloBaseMin * (1 + variacao);
+                    const intervaloEmMS = Math.floor(intervaloComRuidoMin * 60 * 1000);
+                    
+                    tempoAcumuladoMS += intervaloEmMS; 
+                    return { produto: prod, horarioEnvio: tempoAcumuladoMS };
+                });
+
+                setGrupo(idGrupo, 'FILA_DE_PRODUTOS', filaExistente.concat(novosAgendados));
+                setGrupo(idGrupo, 'FILA_AGUARDANDO_APROVACAO', []);
+                setGrupo(idGrupo, 'TURNO_SALVO', turnoEncontrado.id);
+                setGrupo(idGrupo, 'DATA_SALVA', dataHoje);
+
+                const idGrupoAdmin = CONFIG.GERAL.ID_GRUPO_ADMIN; 
+                await client.sendMessage(idGrupoAdmin, `🤖 *AUTO-APROVAÇÃO*: *${novosProdutos.length}* produtos garimpados e injetados diretamente na fila do grupo *${regrasDoGrupo.NOME}*.`);
+                console.log(`\n✅ ${novosProdutos.length} produtos AUTO-APROVADOS para a fila.\n`);
+
+            } else {
+                // MODO MANUAL: Manda pra fila de espera e envia o menu pro admin
+                CONFIG.GRUPOS[idGrupo].FILA_AGUARDANDO_APROVACAO = novosProdutos;
+                setGrupo(idGrupo, 'TURNO_SALVO', turnoEncontrado.id);
+                setGrupo(idGrupo, 'DATA_SALVA', dataHoje);
+
+                let textoAprovacao = `🚨 *APROVAÇÃO PENDENTE - ${regrasDoGrupo.NOME}* 🚨\nTurno: ${turnoEncontrado.id}\n\n`;
+                novosProdutos.forEach((prod, idx) => {
+                    const origem = prod.linkOriginal.includes('amazon') ? '🛒 AMZ' : '🛒 ML';
+                    textoAprovacao += `*${idx + 1}.* [${origem}] ${prod.titulo.substring(0, 30)}... (R$ ${prod.preco})\n`;
+                });
+                textoAprovacao += `\n✅ Aprovar TODOS:\n*!aprovar ${regrasDoGrupo.NOME}*\n\n✅ Aprovar alguns:\n*!aprovar ${regrasDoGrupo.NOME} 1,3,4*\n\n❌ Rejeitar e buscar novos:\n*!rejeitar ${regrasDoGrupo.NOME}*`;
+
+                const idGrupoAdmin = CONFIG.GERAL.ID_GRUPO_ADMIN; 
+                await client.sendMessage(idGrupoAdmin, textoAprovacao);
+                console.log(`\n⏸️ Menu de aprovação enviado para o Grupo Admin. Aguardando comandos...`);
+                console.log(`✅ ${novosProdutos.length} produtos embaralhados enviados para a fila de espera.\n`);
+            }
 
         } catch (erro) {
             console.log("❌ Erro fatal no Garimpeiro:", erro);

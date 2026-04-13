@@ -225,9 +225,27 @@ function carregarComandos(client) {
             `🔸 *!template / !update / !resumo*\n\n` +
             `*⚙️ SISTEMA*\n` +
             `🔸 *!config* - Status geral\n` +
-            `🔸 *!setgeral PILOTO_AUTOMATICO_LIGADO [true/false]*`;
+            `🔸 *!robo [on/off]* - Liga/Desliga o automático\n` + // 👈 Adicionado
+            `🔸 *!auto [on/off]* - Liga/Desliga auto-aprovação`;   // 👈 Adicionado
             
             await msg.reply(textoHelp);
+        }
+
+        // ==========================================
+        // COMANDO: !AUTO [ON/OFF]
+        // ==========================================
+        if (msg.body.startsWith('!auto ')) {
+            const acao = msg.body.replace('!auto ', '').trim().toLowerCase();
+            
+            if (acao === 'on') {
+                setGeral('AUTO_APROVAR_LIGADO', true);
+                msg.reply('🚀 **AUTO-APROVAÇÃO LIGADA!**\nOs produtos encontrados serão aprovados e agendados direto na fila automaticamente!');
+            } else if (acao === 'off') {
+                setGeral('AUTO_APROVAR_LIGADO', false);
+                msg.reply('🛡️ **AUTO-APROVAÇÃO DESLIGADA.**\nVoltaremos ao modo manual. O Garimpeiro enviará o menu de aprovação para você.');
+            } else {
+                msg.reply('⚠️ Use `!auto on` para ligar ou `!auto off` para desligar a aprovação automática.');
+            }
         }
 
         if (msg.body.startsWith('!setturno ')) {
