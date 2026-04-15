@@ -5,7 +5,7 @@ const { CONFIG, MAPEAMENTO_CATEGORIAS } = require('../config');
 const { foiEnviadoRecentemente } = require('../memoria');
 
 // 👇 CHAVE LIGA/DESLIGA DA FOTO 👇
-const ENVIAR_FOTO = false; // Mude para false se quiser enviar apenas texto
+const ENVIAR_FOTO = true; // Mude para false se quiser enviar apenas texto
 
 const esperar = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -87,16 +87,21 @@ async function buscarOfertasML(regrasDoGrupo) {
                         let vendasNumero = parseInt(vendasTexto.replace(/\D/g, '')) || 0;
                         if (vendasTexto.includes('mil')) vendasNumero *= 1000;
 
+                        // 👇 NOVO: DEFININDO AS REGRAS ESPECÍFICAS DO ML 👇
+                        const DESCONTO_ATUAL = regrasDoGrupo.IS_RELAMPAGO ? (regrasDoGrupo.ML_DESCONTO_MINIMO_RELAMPAGO ?? regrasDoGrupo.DESCONTO_MINIMO_RELAMPAGO ?? 0) : (regrasDoGrupo.ML_DESCONTO_MINIMO_PADRAO ?? regrasDoGrupo.DESCONTO_MINIMO_PADRAO ?? 0);
+                        const NOTA_ATUAL = regrasDoGrupo.IS_RELAMPAGO ? (regrasDoGrupo.ML_NOTA_MINIMA_RELAMPAGO ?? regrasDoGrupo.NOTA_MINIMA_RELAMPAGO ?? 4.5) : (regrasDoGrupo.ML_NOTA_MINIMA_PADRAO ?? regrasDoGrupo.NOTA_MINIMA_PADRAO ?? 4.5);
+                        const VENDAS_ATUAIS = regrasDoGrupo.IS_RELAMPAGO ? (regrasDoGrupo.ML_VENDAS_MINIMAS_RELAMPAGO ?? regrasDoGrupo.VENDAS_MINIMAS_RELAMPAGO ?? 0) : (regrasDoGrupo.ML_VENDAS_MINIMAS_PADRAO ?? regrasDoGrupo.VENDAS_MINIMAS_PADRAO ?? 0);
+
                         const tituloMinusculo = titulo.toLowerCase();
                         const passaPalavraChave = regrasDoGrupo.PALAVRAS_CHAVE.length === 0 || regrasDoGrupo.PALAVRAS_CHAVE.some(palavra => tituloMinusculo.includes(palavra.toLowerCase()));
 
                         if (passaPalavraChave) {
-                            const passaNoDesconto = descontoNumero >= regrasDoGrupo.DESCONTO_ATUAL;
-                            const passaNaNota = notaNumero >= regrasDoGrupo.NOTA_ATUAL;
-                            const passaNasVendas = vendasNumero >= regrasDoGrupo.VENDAS_ATUAIS;
+                            const passaNoDesconto = descontoNumero >= DESCONTO_ATUAL;
+                            const passaNaNota = notaNumero >= NOTA_ATUAL;
+                            const passaNasVendas = vendasNumero >= VENDAS_ATUAIS;
 
                             if (passaNoDesconto && passaNaNota && passaNasVendas) {
-                                
+
                                 console.log(`   ⏳ Validando Link de Afiliado para: ${titulo.substring(0,35)}...`);
                                 const linkComissionado = await gerarLinkAfiliadoML(linkOriginal);
 

@@ -1,9 +1,8 @@
 // comandos.js
-const { CONFIG, setGeral, addGrupo, setGrupo, encontrarIdPorNome } = require('./config');
+const { CONFIG, setGeral, addGrupo, setGrupo, encontrarIdPorNome, MAPEAMENTO_CATEGORIAS } = require('./config');
 const fs = require('fs');
 const { rodarRoboDeOfertas, obterStatusRobo } = require('./motor');
 const { salvarNoHistorico } = require('./memoria');
-
 
 function carregarComandos(client) {
     client.on('message_create', async msg => {
@@ -63,6 +62,9 @@ function carregarComandos(client) {
             await msg.reply(texto);
         }
 
+        // ==========================================
+        // COMANDO: !ADDGRUPO
+        // ==========================================
         if (msg.body.startsWith('!addgrupo ')) {
             const partes = msg.body.split(' ');
             if (partes.length < 3) {
@@ -76,19 +78,17 @@ function carregarComandos(client) {
             if (addGrupo(id, nome)) {
                 let textoResposta = `✅ Grupo *${nome}* adicionado com sucesso!`;
 
-                // Se você digitou uma categoria e ela existe no dicionário...
-                if (categoriaEscolhida && CATEGORIAS_ML[categoriaEscolhida]) {
-                    const idCatML = CATEGORIAS_ML[categoriaEscolhida];
+                // Se você digitou uma categoria e ela existe no novo dicionário...
+                if (categoriaEscolhida && MAPEAMENTO_CATEGORIAS[categoriaEscolhida]) {
                     
-                    // Injeta a categoria direto na rota padrão e relâmpago!
-                    setGrupo(id, 'ROTA_PADRAO', `?category=${idCatML}`);
-                    setGrupo(id, 'ROTA_RELAMPAGO', `?category=${idCatML}`);
+                    // Salva apenas a chave (ex: GAMER). O scraper puxa a rota sozinho depois!
+                    setGrupo(id, 'CATEGORIA', categoriaEscolhida);
                     
-                    textoResposta += `\n🛒 Categoria configurada automaticamente para: *${categoriaEscolhida}* (${idCatML})`;
+                    textoResposta += `\n🛒 Categoria configurada automaticamente para: *${MAPEAMENTO_CATEGORIAS[categoriaEscolhida].NOME}*`;
                 } else if (categoriaEscolhida) {
-                    textoResposta += `\n⚠️ A categoria '${categoriaEscolhida}' não está no dicionário. A rota ficou em branco.`;
+                    textoResposta += `\n⚠️ A categoria '${categoriaEscolhida}' não está no dicionário.`;
                 } else {
-                    textoResposta += `\n⚠️ Nenhuma categoria informada. A rota ficou vazia.`;
+                    textoResposta += `\n⚠️ Nenhuma categoria informada. O grupo usará a categoria padrão.`;
                 }
 
                 textoResposta += `\n\nUse !template ${nome} para ver ou ajustar o resto dos filtros.`;
@@ -97,7 +97,7 @@ function carregarComandos(client) {
                 await msg.reply(`⚠️ Este grupo já estava cadastrado.`);
             }
         }
-        
+
         if (msg.body.startsWith('!renomear ')) {
             const partes = msg.body.split(' ');
             if (partes.length < 3) return;
@@ -131,19 +131,25 @@ function carregarComandos(client) {
             const regras = CONFIG.GRUPOS[idGrupo];
             let texto = `Copie a mensagem abaixo, altere os valores após o sinal de igual (=) e envie de volta para atualizar:\n\n`;
             
-            // Monta o gabarito limpo com as novas variáveis do sistema
             texto += `!update ${regras.NOME}\n`;
             texto += `LOJAS = ${regras.LOJAS ? regras.LOJAS.join(', ') : 'MERCADOLIVRE, AMAZON'}\n`;
             texto += `CATEGORIA = ${regras.CATEGORIA || 'BEBE'}\n`;
             texto += `LIMITE_PAGINAS_BUSCA = ${regras.LIMITE_PAGINAS_BUSCA}\n`;
             texto += `DIAS_PARA_REPETIR_PRODUTO = ${regras.DIAS_PARA_REPETIR_PRODUTO || 2}\n`;
             texto += `PALAVRAS_CHAVE = ${regras.PALAVRAS_CHAVE ? regras.PALAVRAS_CHAVE.join(', ') : ''}\n`;
-            texto += `DESCONTO_MINIMO_PADRAO = ${regras.DESCONTO_MINIMO_PADRAO}\n`;
-            texto += `VENDAS_MINIMAS_PADRAO = ${regras.VENDAS_MINIMAS_PADRAO}\n`;
-            texto += `NOTA_MINIMA_PADRAO = ${regras.NOTA_MINIMA_PADRAO}\n`;
-            texto += `DESCONTO_MINIMO_RELAMPAGO = ${regras.DESCONTO_MINIMO_RELAMPAGO}\n`;
-            texto += `VENDAS_MINIMAS_RELAMPAGO = ${regras.VENDAS_MINIMAS_RELAMPAGO}\n`;
-            texto += `NOTA_MINIMA_RELAMPAGO = ${regras.NOTA_MINIMA_RELAMPAGO}`;
+            
+            texto += `\n📦 MERCADO LIVRE:\n`;
+            texto += `ML_DESCONTO_MINIMO_PADRAO = ${regras.ML_DESCONTO_MINIMO_PADRAO ?? regras.DESCONTO_MINIMO_PADRAO ?? 0}\n`;
+            texto += `ML_VENDAS_MINIMAS_PADRAO = ${regras.ML_VENDAS_MINIMAS_PADRAO ?? regras.VENDAS_MINIMAS_PADRAO ?? 0}\n`;
+            texto += `ML_NOTA_MINIMA_PADRAO = ${regras.ML_NOTA_MINIMA_PADRAO ?? regras.NOTA_MINIMA_PADRAO ?? 4.5}\n`;
+            texto += `ML_DESCONTO_MINIMO_RELAMPAGO = ${regras.ML_DESCONTO_MINIMO_RELAMPAGO ?? regras.DESCONTO_MINIMO_RELAMPAGO ?? 0}\n`;
+            texto += `ML_VENDAS_MINIMAS_RELAMPAGO = ${regras.ML_VENDAS_MINIMAS_RELAMPAGO ?? regras.VENDAS_MINIMAS_RELAMPAGO ?? 0}\n`;
+            texto += `ML_NOTA_MINIMA_RELAMPAGO = ${regras.ML_NOTA_MINIMA_RELAMPAGO ?? regras.NOTA_MINIMA_RELAMPAGO ?? 4.5}\n`;
+
+            texto += `\n📦 AMAZON:\n`;
+            texto += `AMZ_DESCONTO_MINIMO_PADRAO = ${regras.AMZ_DESCONTO_MINIMO_PADRAO ?? regras.DESCONTO_MINIMO_PADRAO ?? 0}\n`;
+            texto += `AMZ_VENDAS_MINIMAS_PADRAO = ${regras.AMZ_VENDAS_MINIMAS_PADRAO ?? regras.VENDAS_MINIMAS_PADRAO ?? 0}\n`;
+            texto += `AMZ_NOTA_MINIMA_PADRAO = ${regras.AMZ_NOTA_MINIMA_PADRAO ?? regras.NOTA_MINIMA_PADRAO ?? 4.5}`;
 
             msg.reply(texto);
         }
@@ -225,8 +231,8 @@ function carregarComandos(client) {
             `🔸 *!template / !update / !resumo*\n\n` +
             `*⚙️ SISTEMA*\n` +
             `🔸 *!config* - Status geral\n` +
-            `🔸 *!robo [on/off]* - Liga/Desliga o automático\n` + // 👈 Adicionado
-            `🔸 *!auto [on/off]* - Liga/Desliga auto-aprovação`;   // 👈 Adicionado
+            `🔸 *!robo [on/off]* - Liga/Desliga o automático\n` +
+            `🔸 *!auto [on/off]* - Liga/Desliga auto-aprovação`;
             
             await msg.reply(textoHelp);
         }
@@ -292,6 +298,7 @@ function carregarComandos(client) {
             setGrupo(idGrupo, 'FILA_DE_PRODUTOS', []);
             await msg.reply(`🔄 Memória apagada! Pronto para rodar do zero.`);
         }
+        
         // ==========================================
         // COMANDO: !APROVAR (Com Jitter e Reposição)
         // ==========================================
@@ -306,7 +313,7 @@ function carregarComandos(client) {
             if (filaPendente.length === 0) return msg.reply(`⚠️ Não há lista aguardando aprovação para ${nomeGrupo}.`);
 
             let produtosAprovados = [];
-            let produtosRejeitados = []; // 👇 Agora separamos o joio do trigo
+            let produtosRejeitados = []; 
 
             if (partes.length > 1) {
                 const escolhas = partes.slice(1).join('').split(',');
@@ -325,7 +332,7 @@ function carregarComandos(client) {
 
             if (produtosAprovados.length === 0) return msg.reply(`❌ Nenhum produto válido selecionado.`);
 
-            // 1. JOGA OS REJEITADOS NA LISTA NEGRA (Para não voltarem na próxima busca)
+            // 1. JOGA OS REJEITADOS NA LISTA NEGRA
             produtosRejeitados.forEach(prod => salvarNoHistorico(prod.linkLimpo));
 
             // 2. AGENDA OS APROVADOS COM VARIAÇÃO HUMANA (JITTER)
@@ -336,16 +343,14 @@ function carregarComandos(client) {
             let filaExistente = CONFIG.GRUPOS[idGrupo].FILA_DE_PRODUTOS || [];
             let tempoAcumuladoMS = Date.now();
 
-            // Se já tem produto na fila, o novo agendamento começa a partir do último
             if (filaExistente.length > 0) {
                 tempoAcumuladoMS = filaExistente[filaExistente.length - 1].horarioEnvio + Math.floor(intervaloBaseMin * 60 * 1000);
             }
 
             const novosAgendados = produtosAprovados.map((prod, index) => {
                 if (index === 0 && filaExistente.length === 0) {
-                    return { produto: prod, horarioEnvio: tempoAcumuladoMS }; // O 1º sai na hora
+                    return { produto: prod, horarioEnvio: tempoAcumuladoMS }; 
                 }
-                // Cria variação de tempo: Sorteia 30% pra mais ou pra menos
                 const variacao = (Math.random() * 0.6) - 0.3; 
                 const intervaloComRuidoMin = intervaloBaseMin * (1 + variacao);
                 const intervaloEmMS = Math.floor(intervaloComRuidoMin * 60 * 1000);
@@ -354,19 +359,16 @@ function carregarComandos(client) {
                 return { produto: prod, horarioEnvio: tempoAcumuladoMS };
             });
 
-            // Junta a fila antiga com os novos aprovados
             CONFIG.GRUPOS[idGrupo].FILA_DE_PRODUTOS = filaExistente.concat(novosAgendados);
             CONFIG.GRUPOS[idGrupo].FILA_AGUARDANDO_APROVACAO = [];
 
             // 3. A MÁGICA DA REPOSIÇÃO
             if (produtosRejeitados.length > 0) {
-                // Se você rejeitou algo, o turno não acabou! Apagamos o carimbo para forçar nova busca
                 CONFIG.GRUPOS[idGrupo].TURNO_SALVO = ""; 
                 fs.writeFileSync('./config.json', JSON.stringify(CONFIG, null, 4));
                 
                 msg.reply(`✅ *${produtosAprovados.length}* agendados na fila!\n🗑️ *${produtosRejeitados.length}* rejeitados e banidos.\n\n🔍 O Garimpeiro já desceu pra mina pra buscar as ${produtosRejeitados.length} vagas que faltam...`);
                 
-                // Dispara o robô em background pra caçar os que faltam imediatamente
                 rodarRoboDeOfertas(client, idGrupo);
             } else {
                 fs.writeFileSync('./config.json', JSON.stringify(CONFIG, null, 4));
@@ -391,7 +393,6 @@ function carregarComandos(client) {
             }
         }
 
-
         // ==========================================
         // COMANDO: !REJEITAR
         // ==========================================
@@ -402,9 +403,8 @@ function carregarComandos(client) {
             if (!idGrupo) return msg.reply(`❌ Grupo não encontrado.`);
 
             CONFIG.GRUPOS[idGrupo].FILA_AGUARDANDO_APROVACAO = [];
-            CONFIG.GRUPOS[idGrupo].TURNO_SALVO = ""; // Apaga o turno salvo para ele tentar de novo
+            CONFIG.GRUPOS[idGrupo].TURNO_SALVO = ""; 
             
-            const fs = require('fs');
             fs.writeFileSync('./config.json', JSON.stringify(CONFIG, null, 4));
 
             msg.reply(`🗑️ Lista rejeitada! O Garimpeiro vai fazer uma nova busca na próxima rodada do automático.`);
