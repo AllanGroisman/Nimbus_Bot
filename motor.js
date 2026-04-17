@@ -17,7 +17,7 @@ function obterStatusRobo() {
 // ==========================================
 // 1. O GARIMPEIRO (Busca de Produtos)
 // ==========================================
-// Função responsável por vasculhar o Mercado Livre atrás de ofertas de acordo com as regras do grupo
+// Função responsável por vasculhar o Mercado Livre e Amazon atrás de ofertas de acordo com as regras do grupo
 async function rodarRoboDeOfertas(client, idGrupoEspecifico = null) {
     // Se o robô já estiver rodando, aborta a execução para não duplicar processos
     if (roboOcupado) {
@@ -268,18 +268,20 @@ function iniciarDespachante(client) {
                     
                     const emoji = isRelampago ? '⚡ *OFERTA RELÂMPAGO* ⚡' : '🔥 *OFERTA ENCONTRADA* 🔥';
                     
-                    // Cria a tag de vendas apenas se o número for maior que zero
-                    const textoVendas = prod.vendas > 0 ? ` (${prod.vendas}+ vendidos)` : '';
+                    // 👇 Tratamento Seguro das Vendas (Blindado contra 0, NaN e nulos) 👇
+                    const vendasValidas = (prod.vendas && !isNaN(prod.vendas) && prod.vendas > 0);
+                    const textoVendas = vendasValidas ? ` (${prod.vendas}+ vendidos)` : '';
 
                     // Monta o texto final da mensagem para o WhatsApp
                     const textoMensagem = `${emoji}\n\n📦 *Produto:* ${prod.titulo}\n⭐ *Nota:* ${prod.nota}${textoVendas}\n📉 *Desconto:* ${prod.desconto}% OFF\n${linhaPreco}\n\n🛒 *Compre aqui:* ${prod.linkComissionado}`;
+                    
                     try {
                         const chat = await client.getChatById(idGrupo);
                         // Simula o bot "digitando..." por 2 segundos para parecer mais humano
                         await chat.sendStateTyping(); 
                         await esperar(2000); 
 
-                        // Tenta baixar a imagem do produto do Mercado Livre para mandar com a mensagem
+                        // Tenta baixar a imagem do produto do Mercado Livre/Amazon para mandar com a mensagem
                         try {
                             if (prod.imagem && prod.imagem.startsWith('http')) {
                                 console.log(`   📸 Baixando foto do produto...`);

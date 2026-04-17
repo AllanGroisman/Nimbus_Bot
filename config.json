@@ -12,20 +12,10 @@
     "120363407976363861@g.us": {
       "NOME": "BEBE",
       "LOJAS": [
-        "AMAZON",
-        "MERCADOLIVRE"
+        "AMAZON"
       ],
       "LIMITE_PAGINAS_BUSCA": 10,
-      "PALAVRAS_CHAVE": [
-        "CADEIRA",
-        "FRALDA",
-        "CADEIRINHA",
-        "LENÇO",
-        "CANGURU",
-        "BABÁ",
-        "ELETRÔNICA",
-        "BOMBA"
-      ],
+      "PALAVRAS_CHAVE": [],
       "DIAS_PARA_REPETIR_PRODUTO": 2,
       "ML_DESCONTO_MINIMO_PADRAO": 15,
       "ML_VENDAS_MINIMAS_PADRAO": 200,
@@ -33,9 +23,9 @@
       "ML_DESCONTO_MINIMO_RELAMPAGO": 15,
       "ML_VENDAS_MINIMAS_RELAMPAGO": 50,
       "ML_NOTA_MINIMA_RELAMPAGO": 4.5,
-      "AMZ_DESCONTO_MINIMO_PADRAO": 15,
+      "AMZ_DESCONTO_MINIMO_PADRAO": 0,
       "AMZ_VENDAS_MINIMAS_PADRAO": 0,
-      "AMZ_NOTA_MINIMA_PADRAO": 4.6,
+      "AMZ_NOTA_MINIMA_PADRAO": 0,
       "TURNOS": [
         {
           "id": "T1",
@@ -54,21 +44,21 @@
         {
           "id": "T3",
           "modo": "PADRAO",
-          "inicio": "13:00",
-          "fim": "13:59",
-          "intervaloMin": 3
+          "inicio": "13:01",
+          "fim": "17:59",
+          "intervaloMin": 20
         },
         {
           "id": "T4",
           "modo": "RELAMPAGO",
-          "inicio": "16:01",
+          "inicio": "18:01",
           "fim": "18:59",
           "intervaloMin": 9
         },
         {
           "id": "T5",
           "modo": "PADRAO",
-          "inicio": "19:00",
+          "inicio": "19:01",
           "fim": "20:59",
           "intervaloMin": 20
         },
@@ -80,10 +70,71 @@
           "intervaloMin": 9
         }
       ],
-      "FILA_DE_PRODUTOS": [],
-      "TURNO_SALVO": "T4",
-      "DATA_SALVA": "15/04/2026",
-      "QTD_ATUAL": 19,
+      "FILA_DE_PRODUTOS": [
+        {
+          "produto": {
+            "titulo": "Babá Eletrônica Câmera para Bebês com Tela de 3.2\" Visão Noturna 10M Infravermelha Monitoramento Temperatura, Áudio Bidirecional, Detecção de Som VOX, Modo Soneca Contem Visão Noturna Canção de Ninar",
+            "preco": "194",
+            "precoAntigo": "249",
+            "linkOriginal": "https://www.amazon.com.br/Eletr%C3%B4nica-Infravermelha-Monitoramento-Temperatura-Bidirecional/dp/B0FDQWFL5X",
+            "linkLimpo": "https://www.amazon.com.br/Eletr%C3%B4nica-Infravermelha-Monitoramento-Temperatura-Bidirecional/dp/B0FDQWFL5X",
+            "linkComissionado": "https://www.amazon.com.br/Eletr%C3%B4nica-Infravermelha-Monitoramento-Temperatura-Bidirecional/dp/B0FDQWFL5X?tag=pedroguterres-20",
+            "desconto": 22,
+            "nota": 4.2,
+            "vendas": 200,
+            "imagem": "https://m.media-amazon.com/images/I/61x3NKsvm7L.jpg"
+          },
+          "horarioEnvio": 1776439057429
+        },
+        {
+          "produto": {
+            "titulo": "Weleda Babycreme de Calêndula | Proteção Natural Contra Assaduras | Fórmula Suave com Calêndula e Camomila | 120 ml",
+            "preco": "71",
+            "precoAntigo": "87",
+            "linkOriginal": "https://www.amazon.com.br/Weleda-Babycreme-Cal%C3%AAndula-Prote%C3%A7%C3%A3o-Assaduras/dp/B0FH7C4YCS",
+            "linkLimpo": "https://www.amazon.com.br/Weleda-Babycreme-Cal%C3%AAndula-Prote%C3%A7%C3%A3o-Assaduras/dp/B0FH7C4YCS",
+            "linkComissionado": "https://www.amazon.com.br/Weleda-Babycreme-Cal%C3%AAndula-Prote%C3%A7%C3%A3o-Assaduras/dp/B0FH7C4YCS?tag=pedroguterres-20",
+            "desconto": 18,
+            "nota": 4.9,
+            "vendas": 800,
+            "imagem": "https://m.media-amazon.com/images/I/41z+UZXo-gL.jpg"
+          },
+          "horarioEnvio": 1776439631966
+        },
+        {
+          "produto": {
+            "titulo": "MamyPoko Fralda-Calça Superproteção G 28 Unidades",
+            "preco": "30",
+            "precoAntigo": "42",
+            "linkOriginal": "https://www.amazon.com.br/MamyPoko-Fralda-Cal%C3%A7a-Superprote%C3%A7%C3%A3o-28-Unidades/dp/B0D4363KSD",
+            "linkLimpo": "https://www.amazon.com.br/MamyPoko-Fralda-Cal%C3%A7a-Superprote%C3%A7%C3%A3o-28-Unidades/dp/B0D4363KSD",
+            "linkComissionado": "https://www.amazon.com.br/MamyPoko-Fralda-Cal%C3%A7a-Superprote%C3%A7%C3%A3o-28-Unidades/dp/B0D4363KSD?tag=pedroguterres-20",
+            "desconto": 29,
+            "nota": 4,
+            "vendas": 2000,
+            "imagem": "https://m.media-amazon.com/images/I/61UP6Ax5N+L.jpg"
+          },
+          "horarioEnvio": 1776440255084
+        },
+        {
+          "produto": {
+            "titulo": "Babá Eletrônica, Câmera para Bebês com Tela de 3.2\", Visão Noturna 10M Infravermelha, Áudio Bidirecional, Detecção de Som VOX, Monitoramento Temperatura, Canção de Ninar",
+            "preco": "218",
+            "precoAntigo": "269",
+            "linkOriginal": "https://www.amazon.com.br/Eletr%C3%B4nica-Infravermelha-Bidirecional-Monitoramento-Temperatura/dp/B0FD1YWXHT",
+            "linkLimpo": "https://www.amazon.com.br/Eletr%C3%B4nica-Infravermelha-Bidirecional-Monitoramento-Temperatura/dp/B0FD1YWXHT",
+            "linkComissionado": "https://www.amazon.com.br/Eletr%C3%B4nica-Infravermelha-Bidirecional-Monitoramento-Temperatura/dp/B0FD1YWXHT?tag=pedroguterres-20",
+            "desconto": 19,
+            "nota": 4.3,
+            "vendas": 500,
+            "imagem": "https://m.media-amazon.com/images/I/61McopMRDXL.jpg"
+          },
+          "horarioEnvio": 1776440917622
+        }
+      ],
+      "TURNO_SALVO": "T2",
+      "DATA_SALVA": "17/04/2026",
+      "QTD_ATUAL": 6,
       "CATEGORIA": "BEBE",
       "IS_RELAMPAGO": true,
       "FILA_AGUARDANDO_APROVACAO": []

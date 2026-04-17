@@ -14,6 +14,7 @@ async function buscarOfertas(regrasDoGrupo) {
     console.log(`==================================================`);
     
     const produtos = [];
+    let rolagens = 0; // 👈 CORREÇÃO: Variável declarada no escopo principal
     const TAG_AFILIADO = CONFIG.GERAL.TAG_AMAZON || "pedroguterres-20";
 
     const browser = await chromium.launch({ headless: true }); 
@@ -55,7 +56,6 @@ async function buscarOfertas(regrasDoGrupo) {
         await pageLista.waitForTimeout(3000);
 
         // 👇 NOVO: Limite amarrado à configuração do WhatsApp!
-        let rolagens = 0;
         let linksInspecionadosNestaSessao = new Set(); 
         const MAX_ROLAGENS = regrasDoGrupo.LIMITE_PAGINAS_BUSCA || 5; 
         
@@ -145,11 +145,18 @@ async function buscarOfertas(regrasDoGrupo) {
                         const notaEl = document.querySelector('#acrPopover') || document.querySelector('#averageCustomerReviews');
                         if (notaEl) notaTexto = notaEl.getAttribute('title') || notaEl.textContent;
 
+                        // Localize este trecho no seu amazon.js e substitua:
                         let vendasTexto = '';
-                        const spanVendas = Array.from(document.querySelectorAll('span.a-size-small, span.a-size-base')).find(el => 
-                            el.textContent.includes('comprados') || el.textContent.includes('compraram')
-                        );
-                        if (spanVendas) vendasTexto = spanVendas.textContent.trim();
+                        const spanVendas = Array.from(document.querySelectorAll('span.a-size-small, span.a-size-base, #social-proofing-faceout-title-tk_combined_free_display_strategy'))
+                            .find(el => {
+                                const txt = el.textContent.toLowerCase();
+                                // Ignora a barra de progresso de ofertas relâmpago e foca em "comprados/compras"
+                                return (txt.includes('comprados') || txt.includes('compras')) && !txt.includes('%');
+                            });
+
+                        if (spanVendas) {
+                            vendasTexto = spanVendas.textContent.trim();
+                        }
 
                         let img = '';
                         if (capturarFoto && !isCaptcha) {
